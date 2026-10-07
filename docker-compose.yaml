@@ -1,0 +1,19 @@
+services:
+  postgres_ocorrencias:
+    build: .
+    container_name: postgres_ocorrencias
+    restart: always
+    environment:
+       POSTGRES_DB: ${POSTGRES_DB}
+       POSTGRES_USER: ${POSTGRES_USER}
+       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Opcional: Descomente a linha abaixo para automatizar o restore ao iniciar do zero
+      # - ./seu_dump_original.sql:/docker-entrypoint-initdb.d/init.sql
+
+volumes:
+  postgres_data:
+
