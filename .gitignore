@@ -58,7 +58,7 @@ logs/
 # Docker
 # =========================
 docker-compose.override.yml
-
+custom_files/
 # =========================
 # Database / dumps
 # =========================

@@ -4,16 +4,30 @@ services:
     container_name: postgres_ocorrencias
     restart: always
     environment:
-       POSTGRES_DB: ${POSTGRES_DB}
-       POSTGRES_USER: ${POSTGRES_USER}
-       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      # Opcional: Descomente a linha abaixo para automatizar o restore ao iniciar do zero
-      # - ./seu_dump_original.sql:/docker-entrypoint-initdb.d/init.sql
+
+  valhalla:
+    image: ghcr.io/valhalla/valhalla-scripted:latest
+    container_name: criminalidade-valhalla
+    restart: unless-stopped
+    ports:
+      - "8002:8002"
+    volumes:
+      - ./custom_files:/custom_files
+    environment:
+      - tile_urls=http://download.geofabrik.de/south-america/brazil/sudeste-latest.osm.pbf
+      - server_threads=4
+      - use_tiles_ignore_pbf=False
+      - build_elevation=False
+      - build_admins=True
+      - build_time_zones=True
+      - build_transit=False
 
 volumes:
   postgres_data:
-
