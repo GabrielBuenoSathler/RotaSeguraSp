@@ -1,16 +1,36 @@
-from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.orm import DeclarativeBase
 
 from app.core.config import settings
 
 
-engine = create_async_engine(
-    settings.database_url,
-    pool_pre_ping=True,
+DATABASE_URL = (
+    f"postgresql://"
+    f"{settings.postgres_user}:"
+    f"{settings.postgres_password}@"
+    f"{settings.postgres_host}:"
+    f"{settings.postgres_port}/"
+    f"Criminalidade"
 )
 
 
-async def test_connection():
-    async with engine.connect() as connection:
-        result = await connection.execute(text("SELECT 1"))
-        return result.scalar()
+engine = create_async_engine(DATABASE_URL)
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
