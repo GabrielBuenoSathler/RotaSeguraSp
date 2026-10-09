@@ -1,31 +1,94 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, BigInteger
-from sqlalchemy.orm import Mapped, mapped_column
 from geoalchemy2 import Geometry
+from sqlalchemy import BigInteger, DateTime, func
+from sqlalchemy.orm import Mapped, mapped_column, registry
 
-from app.core.database import Base
+
+mapper_registry = registry()
 
 
-class RouteRequest(Base):
+@mapper_registry.mapped_as_dataclass
+class RouteRequest:
     __tablename__ = "route_requests"
 
     id: Mapped[int] = mapped_column(
         BigInteger,
-        primary_key=True
+        primary_key=True,
+        init=False,
     )
 
     origin: Mapped[object] = mapped_column(
         Geometry("POINT", srid=4326),
-        nullable=False
+        nullable=False,
     )
 
     destination: Mapped[object] = mapped_column(
         Geometry("POINT", srid=4326),
-        nullable=False
+        nullable=False,
     )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        nullable=False
+        server_default=func.now(),
+        nullable=False,
+        init=False,
     )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -16,7 +16,8 @@ dependencies = [
     "greenlet (>=3.5.6,<4.0.0)",
     "load-dotenv (>=0.1.0,<0.2.0)",
     "alembic (>=1.20.0,<2.0.0)",
-    "psycopg (>=3.3.6,<4.0.0)"
+    "psycopg (>=3.3.6,<4.0.0)",
+    "python-dotenv (>=1.2.4,<2.0.0)"
 ]
 
 
