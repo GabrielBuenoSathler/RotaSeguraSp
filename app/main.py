@@ -33,6 +33,7 @@ async def create_route(
             srid=4326,
         ),
         transport_mode=route.transport_mode,
+    
     )
 
     session.add(db_route)
@@ -52,14 +53,6 @@ async def create_route(
         "created_at": db_route.created_at,
         "message": "Rota cadastrada com sucesso",
     }
-
-
-
-
-
-
-
-
 
 
 

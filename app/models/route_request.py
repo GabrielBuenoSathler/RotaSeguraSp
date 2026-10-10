@@ -41,6 +41,7 @@ class RouteRequest(Base):
 
     origin: Mapped[object] = mapped_column(
         Geometry("POINT", srid=4326),
+
         nullable=False,
     )
 
@@ -67,12 +68,8 @@ class RouteRequest(Base):
 
 
 
-
-
-
-
-
-
+                            
+                                        
 
 
 

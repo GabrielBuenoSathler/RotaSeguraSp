@@ -13,3 +13,4 @@ class RouteRequestCreate(BaseModel):
     destination_lon: float = Field(ge=-180, le=180)
 
     transport_mode: TransportMode = TransportMode.AUTO
+     
