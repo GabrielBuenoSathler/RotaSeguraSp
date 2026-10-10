@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm import DeclarativeBase, MappedAsDataclass
 
 from app.core.config import settings
 
@@ -28,9 +29,9 @@ SessionLocal = async_sessionmaker(
 )
 
 
-class Base(DeclarativeBase):
-    pass
 
+class Base(MappedAsDataclass, DeclarativeBase):
+    pass
 
 async def get_session():
     async with SessionLocal() as session:

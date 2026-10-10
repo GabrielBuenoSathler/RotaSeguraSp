@@ -10,6 +10,14 @@ from geoalchemy2.elements import WKTElement
 app = FastAPI()
 
 
+from fastapi import Depends, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
+from geoalchemy2.elements import WKTElement
+
+from app.core.database import get_session
+from app.models.route_request import RouteRequest
+
+
 @app.post("/rota/", status_code=201)
 async def create_route(
     route: RouteRequestCreate,
@@ -24,7 +32,40 @@ async def create_route(
             f"POINT({route.destination_lon} {route.destination_lat})",
             srid=4326,
         ),
+        transport_mode=route.transport_mode,
     )
+
+    session.add(db_route)
+
+    try:
+        await session.commit()
+        await session.refresh(db_route)
+    except Exception:
+        await session.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail="Erro ao cadastrar a rota.",
+        )
+
+    return {
+        "id": db_route.id,
+        "created_at": db_route.created_at,
+        "message": "Rota cadastrada com sucesso",
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     session.add(db_route)
 
@@ -35,4 +76,4 @@ async def create_route(
         "id": db_route.id,
         "created_at": db_route.created_at,
         "message": "Rota cadastrada com sucesso",
-    }
+        }
