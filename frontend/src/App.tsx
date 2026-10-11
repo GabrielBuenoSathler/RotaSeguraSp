@@ -9,8 +9,9 @@ import "./App.css";
 
 export default function App() {
   const [origin, setOrigin] = useState<Coordinates | null>(null);
-  const [destination, setDestination] =
-    useState<Coordinates | null>(null);
+  const [destination, setDestination] = useState<Coordinates | null>(
+    null
+  );
 
   const [selecting, setSelecting] = useState<
     "origin" | "destination"
@@ -22,9 +23,15 @@ export default function App() {
   const [error, setError] = useState("");
   const [result, setResult] = useState<RouteResult | null>(null);
 
-  const [geometry, setGeometry] =
-    useState<[number, number][] | null>(null);
+  const [geometry, setGeometry] = useState<
+    [number, number][] | null
+  >(null);
 
+  /**
+   * Seleciona um ponto no mapa.
+   * O primeiro clique define a origem.
+   * O segundo clique define o destino.
+   */
   function selectPoint(point: Coordinates) {
     setError("");
     setResult(null);
@@ -38,6 +45,9 @@ export default function App() {
     }
   }
 
+  /**
+   * Limpa a origem, o destino e os resultados.
+   */
   function clearSelection() {
     setOrigin(null);
     setDestination(null);
@@ -47,6 +57,10 @@ export default function App() {
     setSelecting("origin");
   }
 
+  /**
+   * Cria a solicitação no backend e calcula a rota
+   * utilizando o endpoint do Valhalla.
+   */
   async function calculateRoute() {
     if (!origin || !destination) {
       setError("Selecione a origem e o destino no mapa.");
@@ -59,32 +73,18 @@ export default function App() {
     setGeometry(null);
 
     try {
-      /*
-       * CONTRATO ESPERADO:
-       *
-       * POST /rota/
-       * {
-       *   "origin": {"lat": -23.55, "lon": -46.63},
-       *   "destination": {"lat": -23.56, "lon": -46.64},
-       *   "transport_mode": "auto"
-       * }
-       *
-       * POST /rota/{id}/calculate
-       *
-       * Adapte o primeiro POST ao schema real do backend.
-       */
+      // 1. Criar a solicitação de rota.
+      // Os nomes dos campos correspondem ao schema do FastAPI.
 
       const createResponse = await api.post("/rota/", {
-        origin: {
-          lat: origin.lat,
-          lon: origin.lon,
-        },
-        destination: {
-          lat: destination.lat,
-          lon: destination.lon,
-        },
+        origin_lat: origin.lat,
+        origin_lon: origin.lon,
+        destination_lat: destination.lat,
+        destination_lon: destination.lon,
         transport_mode: transportMode,
       });
+
+      // 2. Recuperar o ID retornado pela API.
 
       const requestId =
         createResponse.data.id ??
@@ -92,47 +92,70 @@ export default function App() {
 
       if (requestId == null) {
         throw new Error(
-          "A API não retornou o ID da solicitação."
+          "A API não retornou o ID da solicitação de rota."
         );
       }
 
-      const response = await api.post(
+      // 3. Solicitar o cálculo da rota.
+
+      const calculateResponse = await api.post(
         `/rota/${requestId}/calculate`
       );
 
-      const data: RouteResult = response.data;
+      const data: RouteResult = calculateResponse.data;
+
+      // 4. Salvar o resultado na interface.
 
       setResult({
         ...data,
         route_request_id: requestId,
       });
 
+      // 5. Converter GeoJSON para o formato do Leaflet.
+      //
+      // GeoJSON utiliza [longitude, latitude].
+      // Leaflet utiliza [latitude, longitude].
+
       if (data.geometry?.coordinates) {
-        setGeometry(
+        const points: [number, number][] =
           data.geometry.coordinates.map(
-            ([lon, lat]) => [lat, lon] as [number, number]
-          )
-        );
+            ([longitude, latitude]) =>
+              [latitude, longitude] as [number, number]
+          );
+
+        setGeometry(points);
       }
     } catch (err: unknown) {
-      if (typeof err === "object" && err !== null && "response" in err) {
+      console.error("Erro ao calcular rota:", err);
+
+      if (
+        typeof err === "object" &&
+        err !== null &&
+        "response" in err
+      ) {
         const response = (
           err as {
             response?: {
               status?: number;
-              data?: { detail?: string | object };
+              data?: {
+                detail?: string | object | unknown[];
+              };
             };
           }
         ).response;
 
         const detail = response?.data?.detail;
 
-        setError(
-          typeof detail === "string"
-            ? detail
-            : `Erro HTTP ${response?.status ?? "desconhecido"}. ` +
-              "Confira os endpoints e os schemas da API."
-        );
+        if (typeof detail === "string") {
+          setError(detail);
+        } else if (detail !== undefined) {
+          setError(JSON.stringify(detail));
+        } else {
+          setError(
+            `Erro HTTP ${response?.status ?? "desconhecido"}. ` +
+              "Verifique o backend."
+          );
+        }
       } else if (err instanceof Error) {
         setError(err.message);
       } else {
@@ -143,8 +166,13 @@ export default function App() {
     }
   }
 
-  function formatDuration(seconds?: number) {
-    if (seconds === undefined) return "—";
+  /**
+   * Converte a duração em segundos para um formato legível.
+   */
+  function formatDuration(seconds?: number): string {
+    if (seconds === undefined) {
+      return "—";
+    }
 
     const minutes = Math.round(seconds / 60);
 
@@ -158,18 +186,29 @@ export default function App() {
     return `${hours} h ${remainingMinutes} min`;
   }
 
-  function formatCoordinate(point: Coordinates | null) {
-    if (!point) return "Selecione no mapa";
+  /**
+   * Formata as coordenadas para exibição.
+   */
+  function formatCoordinate(
+    point: Coordinates | null
+  ): string {
+    if (!point) {
+      return "Selecione no mapa";
+    }
 
     return `${point.lat.toFixed(5)}, ${point.lon.toFixed(5)}`;
   }
 
   return (
     <main className="app">
+      {/* Cabeçalho */}
+
       <header className="header">
         <div>
           <p className="eyebrow">MOBILIDADE URBANA</p>
+
           <h1>RotaSegura</h1>
+
           <p className="subtitle">
             Planeje seu trajeto por São Paulo.
           </p>
@@ -178,7 +217,11 @@ export default function App() {
         <span className="status">MVP</span>
       </header>
 
+      {/* Área principal */}
+
       <section className="workspace">
+        {/* Painel lateral */}
+
         <aside className="sidebar">
           <h2>Planejar rota</h2>
 
@@ -187,6 +230,8 @@ export default function App() {
             Primeiro escolha a origem e depois o destino.
           </p>
 
+          {/* Origem */}
+
           <button
             type="button"
             className={`selection-item ${
@@ -194,12 +239,18 @@ export default function App() {
             }`}
             onClick={() => setSelecting("origin")}
           >
-            <span className="point-icon origin-icon">A</span>
+            <span className="point-icon origin-icon">
+              A
+            </span>
+
             <span className="selection-text">
               <strong>Origem</strong>
+
               <small>{formatCoordinate(origin)}</small>
             </span>
           </button>
+
+          {/* Destino */}
 
           <button
             type="button"
@@ -208,14 +259,23 @@ export default function App() {
             }`}
             onClick={() => setSelecting("destination")}
           >
-            <span className="point-icon destination-icon">B</span>
+            <span className="point-icon destination-icon">
+              B
+            </span>
+
             <span className="selection-text">
               <strong>Destino</strong>
+
               <small>{formatCoordinate(destination)}</small>
             </span>
           </button>
 
-          <label htmlFor="transport" className="field-label">
+          {/* Meio de transporte */}
+
+          <label
+            htmlFor="transport"
+            className="field-label"
+          >
             Meio de transporte
           </label>
 
@@ -223,13 +283,17 @@ export default function App() {
             id="transport"
             className="transport-select"
             value={transportMode}
-            onChange={(event) => setTransportMode(event.target.value)}
+            onChange={(event) =>
+              setTransportMode(event.target.value)
+            }
           >
             <option value="auto">Carro</option>
             <option value="bicycle">Bicicleta</option>
             <option value="pedestrian">A pé</option>
             <option value="motorcycle">Motocicleta</option>
           </select>
+
+          {/* Calcular */}
 
           <button
             type="button"
@@ -240,28 +304,40 @@ export default function App() {
             {loading ? "Calculando..." : "Calcular rota"}
           </button>
 
+          {/* Limpar */}
+
           <button
             type="button"
             className="secondary-button"
             onClick={clearSelection}
+            disabled={loading}
           >
             Limpar seleção
           </button>
 
+          {/* Mensagens de erro */}
+
           {error && (
-            <div className="error-message" role="alert">
+            <div
+              className="error-message"
+              role="alert"
+            >
               <strong>Erro</strong>
+
               <p>{error}</p>
             </div>
           )}
 
+          {/* Resultado */}
+
           {result && (
             <section className="route-result">
-              <h3>Resultado</h3>
+              <h3>Resultado da rota</h3>
 
               <div className="result-grid">
                 <div className="result-card">
                   <span>Distância</span>
+
                   <strong>
                     {result.distance_km !== undefined
                       ? `${result.distance_km.toFixed(2)} km`
@@ -270,9 +346,12 @@ export default function App() {
                 </div>
 
                 <div className="result-card">
-                  <span>Duração</span>
+                  <span>Duração estimada</span>
+
                   <strong>
-                    {formatDuration(result.duration_seconds)}
+                    {formatDuration(
+                      result.duration_seconds
+                    )}
                   </strong>
                 </div>
               </div>
@@ -285,23 +364,29 @@ export default function App() {
 
               {!geometry && (
                 <p className="hint">
-                  Para desenhar a rota, a API precisa retornar
-                  sua geometria ou disponibilizar um endpoint
-                  para consultá-la.
+                  A rota foi processada, mas a API ainda
+                  precisa retornar sua geometria para que
+                  o trajeto seja desenhado no mapa.
                 </p>
               )}
             </section>
           )}
 
+          {/* Aviso sobre segurança */}
+
           <div className="disclaimer">
             <strong>Sobre a segurança</strong>
+
             <p>
-              O MVP ainda precisa integrar os dados de criminalidade
-              para comparar o risco dos trajetos. Uma rota calculada
-              não é necessariamente uma rota mais segura.
+              O MVP ainda precisa integrar os dados de
+              criminalidade para comparar o risco dos
+              trajetos. Uma rota calculada não é
+              necessariamente uma rota mais segura.
             </p>
           </div>
         </aside>
+
+        {/* Mapa */}
 
         <section className="map-section">
           <div className="map-toolbar">
@@ -310,6 +395,7 @@ export default function App() {
                 ? "Selecione a origem"
                 : "Selecione o destino"}
             </span>
+
             <span>São Paulo, SP</span>
           </div>
 
@@ -322,9 +408,29 @@ export default function App() {
         </section>
       </section>
 
+      {/* Rodapé */}
+
       <footer className="footer">
         RotaSegura · MVP em desenvolvimento · Mapas © OpenStreetMap
       </footer>
     </main>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

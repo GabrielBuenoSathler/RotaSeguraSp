@@ -11,17 +11,25 @@ from fastapi import FastAPI
 
 from app.routers.router_requests_v import router as route_requests_router
 from fastapi import APIRouter, Depends, HTTPException
-
-router = APIRouter(
-    prefix="/rota",
-    tags=["Rotas"],
-)
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="RotaSegura")
 
+
 app.include_router(route_requests_router)
 router = APIRouter(prefix="/rota", tags=["Rotas"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
+app.include_router(route_requests_router)
 
 
 from fastapi import Depends, HTTPException
