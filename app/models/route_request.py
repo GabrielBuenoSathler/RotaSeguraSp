@@ -6,6 +6,7 @@ from sqlalchemy import BigInteger, DateTime, func
 from sqlalchemy.dialects.postgresql import ENUM as PGEnum
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import BigInteger, DateTime, Float, ForeignKey
 
 
 from app.core.database import Base
@@ -67,8 +68,43 @@ class RouteRequest(Base):
     )
 
 
+class  calculated_routes(Base): 
+    __tablename__ = "calculated_routes"
 
-                            
+    id: Mapped[int] = mapped_column(
+            BigInteger,
+            primary_key=True,
+            init=False
+        )
+
+    route_request_id: Mapped[int] = mapped_column(
+        ForeignKey("route_requests.id"),
+        nullable=False,
+        )
+
+    geometry: Mapped[object] = mapped_column(
+        Geometry("LINESTRING", srid=4326),
+        nullable=False,
+        )
+
+    distance_km: Mapped[float] = mapped_column(
+
+        Float,
+        nullable=False,
+        )
+
+    duration_seconds: Mapped[int] = mapped_column(
+        nullable=False,
+        )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+        init=False,
+
+        )                            
+
                                         
 
 
