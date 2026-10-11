@@ -6,8 +6,22 @@ from app.models.route_request import RouteRequest
 from app.schema import RouteRequestCreate
 
 from geoalchemy2.elements import WKTElement
+from app.routers.router_requests_v import router as route_requests_router
+from fastapi import FastAPI
 
-app = FastAPI()
+from app.routers.router_requests_v import router as route_requests_router
+from fastapi import APIRouter, Depends, HTTPException
+
+router = APIRouter(
+    prefix="/rota",
+    tags=["Rotas"],
+)
+
+app = FastAPI(title="RotaSegura")
+
+app.include_router(route_requests_router)
+router = APIRouter(prefix="/rota", tags=["Rotas"])
+
 
 
 from fastapi import Depends, HTTPException
@@ -16,6 +30,11 @@ from geoalchemy2.elements import WKTElement
 
 from app.core.database import get_session
 from app.models.route_request import RouteRequest
+from fastapi import FastAPI
+
+from app.routers.router_requests_v import router as route_requests_router
+
+
 
 
 @app.post("/rota/", status_code=201)
@@ -53,9 +72,6 @@ async def create_route(
         "created_at": db_route.created_at,
         "message": "Rota cadastrada com sucesso",
     }
-
-
-
 
 
 
