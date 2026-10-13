@@ -3,7 +3,7 @@ import httpx
 
 class ValhallaService:
 
-    def __init__(self, base_url: str = "http://localhost:8002"):
+    def __init__(self, base_url: str = "http://valhalla:8002"):
         self.base_url = base_url
 
     async def calculate_route(

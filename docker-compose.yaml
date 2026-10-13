@@ -1,33 +1,45 @@
 services:
-  postgres_ocorrencias:
-    build: .
-    container_name: postgres_ocorrencias
-    restart: always
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-  valhalla:
-    image: ghcr.io/valhalla/valhalla-scripted:latest
-    container_name: criminalidade-valhalla
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: rotasegura-backend
     restart: unless-stopped
-    ports:
-      - "8002:8002"
-    volumes:
-      - ./custom_files:/custom_files
-    environment:
-      - tile_urls=http://download.geofabrik.de/south-america/brazil/sudeste-latest.osm.pbf
-      - server_threads=4
-      - use_tiles_ignore_pbf=False
-      - build_elevation=False
-      - build_admins=True
-      - build_time_zones=True
-      - build_transit=False
 
-volumes:
-  postgres_data:
+    env_file:
+      - .env
+
+    environment:
+      POSTGRES_HOST: postgres_ocorrencias
+      POSTGRES_PORT: 5432
+      APP_ENV: production
+
+    ports:
+      - "8000:8000"
+
+    networks:
+      - rotasegura-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: http://localhost:8000
+
+    container_name: rotasegura-frontend
+    restart: unless-stopped
+
+    ports:
+      - "3000:80"
+
+    depends_on:
+      - backend
+
+    networks:
+      - rotasegura-network
+
+networks:
+  rotasegura-network:
+    name: crimes_sp_default
+    external: true
