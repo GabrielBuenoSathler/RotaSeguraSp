@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_session
 from app.models.route_request import RouteRequest, calculated_routes
 from app.services.valhala import ValhallaService
-
+from app.services.risk_service import RiskService
 
 router = APIRouter(
     prefix="/rota",
@@ -208,16 +208,79 @@ async def calculate_route(
         await session.rollback()
         raise
 
-    # 9. Retorna o resultado.
+    # 9. Calcula o risco da rota.
+    try:
+        risk = await RiskService.calculate(
+        session=session,
+        route_request_id=route_request.id,
+    )
+
+        risk_status = {
+            "success": True,
+            "code": "RISK_CALCULATED",
+            "message": "Risco de criminalidade calculado com sucesso.",
+        }
+
+    except Exception as exc:
+        await session.rollback()
+
+        print(
+            f"ERRO AO CALCULAR RISCO: "
+            f"{type(exc).__name__}: {exc}"
+    )
+
+    risk = None
+    print (risk)
+    risk_status = {
+        "success": False,
+        "code": "RISK_CALCULATION_ERROR",
+        "message": (
+            "A rota foi calculada, mas não foi possível "
+            "calcular o risco de criminalidade."
+        ),
+    }
+
+# 10. Retorna os resultados para o frontend.
+    geometry_geojson = {
+    "type": "LineString",
+    "coordinates": [
+        [lon, lat]
+        for lat, lon in coordinates
+    ],
+  }
     return {
+    "success": True,
+    "route": {
         "route_request_id": route_request.id,
         "calculated_route_id": calculated_route.id,
         "transport_mode": costing,
         "distance_km": calculated_route.distance_km,
         "duration_seconds": calculated_route.duration_seconds,
         "geometry_points": len(coordinates),
-        "message": "Rota calculada e salva com sucesso",
-    }
+    },
+    "risk": {
+        "status": risk_status,
+        "result": risk,
+    },
+    "message": "Rota calculada com sucesso.",
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

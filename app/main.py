@@ -9,7 +9,6 @@ from geoalchemy2.elements import WKTElement
 from app.routers.router_requests_v import router as route_requests_router
 from fastapi import FastAPI
 
-from app.routers.router_requests_v import router as route_requests_router
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -30,19 +29,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-app.include_router(route_requests_router)
-
-
-from fastapi import Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
-from geoalchemy2.elements import WKTElement
-
-from app.core.database import get_session
-from app.models.route_request import RouteRequest
-from fastapi import FastAPI
-
-from app.routers.router_requests_v import router as route_requests_router
 
 
 

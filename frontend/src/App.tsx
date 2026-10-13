@@ -7,11 +7,28 @@ import type { Coordinates, RouteResult } from "./types/route";
 
 import "./App.css";
 
+type RiskResult = {
+  quantidade_ocorrencias: number;
+  pontuacao_original: number;
+  pontuacao_ajustada: number;
+  pontos_originais_por_km: number | null;
+  pontos_ajustados_por_km: number | null;
+  raio_analise_metros: number;
+};
+
+type RiskData = {
+  status: {
+    success: boolean;
+    code: string;
+    message: string;
+  };
+  result: RiskResult | null;
+};
+
 export default function App() {
   const [origin, setOrigin] = useState<Coordinates | null>(null);
-  const [destination, setDestination] = useState<Coordinates | null>(
-    null
-  );
+  const [destination, setDestination] =
+    useState<Coordinates | null>(null);
 
   const [selecting, setSelecting] = useState<
     "origin" | "destination"
@@ -21,7 +38,9 @@ export default function App() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
   const [result, setResult] = useState<RouteResult | null>(null);
+  const [risk, setRisk] = useState<RiskData | null>(null);
 
   const [geometry, setGeometry] = useState<
     [number, number][] | null
@@ -35,6 +54,7 @@ export default function App() {
   function selectPoint(point: Coordinates) {
     setError("");
     setResult(null);
+    setRisk(null);
     setGeometry(null);
 
     if (selecting === "origin") {
@@ -52,14 +72,14 @@ export default function App() {
     setOrigin(null);
     setDestination(null);
     setResult(null);
+    setRisk(null);
     setGeometry(null);
     setError("");
     setSelecting("origin");
   }
 
   /**
-   * Cria a solicitação no backend e calcula a rota
-   * utilizando o endpoint do Valhalla.
+   * Cria a solicitação e calcula a rota e o risco.
    */
   async function calculateRoute() {
     if (!origin || !destination) {
@@ -70,11 +90,11 @@ export default function App() {
     setLoading(true);
     setError("");
     setResult(null);
+    setRisk(null);
     setGeometry(null);
 
     try {
       // 1. Criar a solicitação de rota.
-      // Os nomes dos campos correspondem ao schema do FastAPI.
 
       const createResponse = await api.post("/rota/", {
         origin_lat: origin.lat,
@@ -84,7 +104,7 @@ export default function App() {
         transport_mode: transportMode,
       });
 
-      // 2. Recuperar o ID retornado pela API.
+      // 2. Recuperar o ID da solicitação.
 
       const requestId =
         createResponse.data.id ??
@@ -96,31 +116,49 @@ export default function App() {
         );
       }
 
-      // 3. Solicitar o cálculo da rota.
+      // 3. Calcular a rota e o risco.
 
       const calculateResponse = await api.post(
         `/rota/${requestId}/calculate`
       );
 
-      const data: RouteResult = calculateResponse.data;
+      const data = calculateResponse.data;
 
-      // 4. Salvar o resultado na interface.
+      // 4. Capturar os dados da rota.
+      // Aceita tanto a resposta nova (data.route)
+      // quanto a resposta antiga (dados na raiz).
+
+      const routeData = data.route ?? data;
 
       setResult({
-        ...data,
+        ...routeData,
         route_request_id: requestId,
-      });
+      } as RouteResult);
 
-      // 5. Converter GeoJSON para o formato do Leaflet.
-      //
-      // GeoJSON utiliza [longitude, latitude].
-      // Leaflet utiliza [latitude, longitude].
+      // 5. Capturar o resultado do cálculo de risco.
 
-      if (data.geometry?.coordinates) {
+      if (data.risk) {
+        setRisk(data.risk as RiskData);
+      } else {
+        setRisk({
+          status: {
+            success: false,
+            code: "RISK_UNAVAILABLE",
+            message:
+              "A API não retornou o resultado da análise de risco.",
+          },
+          result: null,
+        });
+      }
+
+      // 6. Converter a geometria para o formato do Leaflet,
+      // caso a API já a retorne.
+
+      if (routeData.geometry?.coordinates) {
         const points: [number, number][] =
-          data.geometry.coordinates.map(
-            ([longitude, latitude]) =>
-              [latitude, longitude] as [number, number]
+          routeData.geometry.coordinates.map(
+            ([longitude, latitude]: [number, number]) =>
+              [latitude, longitude]
           );
 
         setGeometry(points);
@@ -148,6 +186,13 @@ export default function App() {
 
         if (typeof detail === "string") {
           setError(detail);
+        } else if (
+          typeof detail === "object" &&
+          detail !== null &&
+          "message" in detail &&
+          typeof detail.message === "string"
+        ) {
+          setError(detail.message);
         } else if (detail !== undefined) {
           setError(JSON.stringify(detail));
         } else {
@@ -239,9 +284,7 @@ export default function App() {
             }`}
             onClick={() => setSelecting("origin")}
           >
-            <span className="point-icon origin-icon">
-              A
-            </span>
+            <span className="point-icon origin-icon">A</span>
 
             <span className="selection-text">
               <strong>Origem</strong>
@@ -259,9 +302,7 @@ export default function App() {
             }`}
             onClick={() => setSelecting("destination")}
           >
-            <span className="point-icon destination-icon">
-              B
-            </span>
+            <span className="point-icon destination-icon">B</span>
 
             <span className="selection-text">
               <strong>Destino</strong>
@@ -272,10 +313,7 @@ export default function App() {
 
           {/* Meio de transporte */}
 
-          <label
-            htmlFor="transport"
-            className="field-label"
-          >
+          <label htmlFor="transport" className="field-label">
             Meio de transporte
           </label>
 
@@ -318,17 +356,14 @@ export default function App() {
           {/* Mensagens de erro */}
 
           {error && (
-            <div
-              className="error-message"
-              role="alert"
-            >
+            <div className="error-message" role="alert">
               <strong>Erro</strong>
 
               <p>{error}</p>
             </div>
           )}
 
-          {/* Resultado */}
+          {/* Resultado da rota */}
 
           {result && (
             <section className="route-result">
@@ -349,9 +384,7 @@ export default function App() {
                   <span>Duração estimada</span>
 
                   <strong>
-                    {formatDuration(
-                      result.duration_seconds
-                    )}
+                    {formatDuration(result.duration_seconds)}
                   </strong>
                 </div>
               </div>
@@ -372,16 +405,92 @@ export default function App() {
             </section>
           )}
 
+          {/* Resultado do cálculo de risco */}
+
+          {risk && (
+            <section className="route-result">
+              <h3>Análise de risco</h3>
+
+              {risk.status.success && risk.result ? (
+                <>
+                  <p>{risk.status.message}</p>
+
+                  <div className="result-grid">
+                    <div className="result-card">
+                      <span>Ocorrências próximas</span>
+
+                      <strong>
+                        {risk.result.quantidade_ocorrencias.toLocaleString(
+                          "pt-BR"
+                        )}
+                      </strong>
+                    </div>
+
+                    <div className="result-card">
+                      <span>Pontuação original</span>
+
+                      <strong>
+                        {risk.result.pontuacao_original.toLocaleString(
+                          "pt-BR"
+                        )}
+                      </strong>
+                    </div>
+
+                    <div className="result-card">
+                      <span>Pontuação ajustada</span>
+
+                      <strong>
+                        {risk.result.pontuacao_ajustada.toLocaleString(
+                          "pt-BR",
+                          {
+                            maximumFractionDigits: 2,
+                          }
+                        )}
+                      </strong>
+                    </div>
+
+                    <div className="result-card">
+                      <span>Pontos ajustados por km</span>
+
+                      <strong>
+                        {risk.result.pontos_ajustados_por_km === null
+                          ? "—"
+                          : risk.result.pontos_ajustados_por_km.toLocaleString(
+                              "pt-BR",
+                              {
+                                maximumFractionDigits: 2,
+                              }
+                            )}
+                      </strong>
+                    </div>
+                  </div>
+
+                  <p className="hint">
+                    Análise de ocorrências em um raio de{" "}
+                    {risk.result.raio_analise_metros} metros
+                    da rota.
+                  </p>
+                </>
+              ) : (
+                <div className="error-message" role="status">
+                  <strong>Risco indisponível</strong>
+
+                  <p>{risk.status.message}</p>
+                </div>
+              )}
+            </section>
+          )}
+
           {/* Aviso sobre segurança */}
 
           <div className="disclaimer">
             <strong>Sobre a segurança</strong>
 
             <p>
-              O MVP ainda precisa integrar os dados de
-              criminalidade para comparar o risco dos
-              trajetos. Uma rota calculada não é
-              necessariamente uma rota mais segura.
+              A pontuação é um indicador experimental de exposição
+              a ocorrências registradas. Não representa uma
+              probabilidade validada de vitimização nem garante
+              que uma rota seja segura.
             </p>
           </div>
         </aside>
@@ -416,21 +525,3 @@ export default function App() {
     </main>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
