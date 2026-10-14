@@ -106,7 +106,7 @@ export default function MapView({
           radius={9}
           pathOptions={{
             color: "#ffffff",
-            fillColor: "#16a34a",
+            fillColor: "#0f766e",
             fillOpacity: 1,
             weight: 3,
           }}
@@ -121,7 +121,7 @@ export default function MapView({
           radius={9}
           pathOptions={{
             color: "#ffffff",
-            fillColor: "#dc2626",
+            fillColor: "#d97745",
             fillOpacity: 1,
             weight: 3,
           }}
@@ -134,7 +134,7 @@ export default function MapView({
         <Polyline
           positions={geometry}
           pathOptions={{
-            color: "#2563eb",
+            color: "#0f766e",
             weight: 6,
             opacity: 0.85,
           }}

@@ -1,25 +1,26 @@
+from sqlalchemy.engine import URL
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
-from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm import DeclarativeBase, MappedAsDataclass
 
 from app.core.config import settings
 
-
-DATABASE_URL = (
-    f"postgresql+asyncpg://"
-    f"{settings.postgres_user}:"
-    f"{settings.postgres_password}@"
-    f"{settings.postgres_host}:"
-    f"{settings.postgres_port}/Criminalidade"
+DATABASE_URL = URL.create(
+    "postgresql+asyncpg",
+    username=settings.postgres_user,
+    password=settings.postgres_password,
+    host=settings.postgres_host,
+    port=settings.postgres_port,
+    database=settings.postgres_database,
 )
 
 engine = create_async_engine(
     DATABASE_URL,
-    echo=True,
+    echo=settings.sql_echo,
+    pool_pre_ping=True,
 )
 
 SessionLocal = async_sessionmaker(
@@ -29,9 +30,9 @@ SessionLocal = async_sessionmaker(
 )
 
 
-
 class Base(MappedAsDataclass, DeclarativeBase):
     pass
+
 
 async def get_session():
     async with SessionLocal() as session:

@@ -1,41 +1,45 @@
+from datetime import UTC, datetime, timedelta
+
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
+
 
 class RiskService:
-    RADIUS_METERS = 50
-
     @staticmethod
     async def calculate(
         session: AsyncSession,
-        route_request_id: int,
+        calculated_route_id: int,
     ) -> dict:
-
-        query = text("""
+        period_end = datetime.now(UTC)
+        period_start = period_end - timedelta(days=settings.risk_window_days)
+        # Only a validated administrator-configured identifier is interpolated.
+        date_filter = ""
+        if settings.occurrence_date_column:
+            column = settings.occurrence_date_column
+            date_filter = (
+                f'AND o."{column}" >= :period_start AND o."{column}" <= :period_end'
+            )
+        query = text(
+            """
             WITH rota AS (
                 SELECT
                     id AS calculated_route_id,
                     route_request_id,
-                    geometry,
+                    geometry::geography AS geography,
                     distance_km
                 FROM calculated_routes
-                WHERE route_request_id = :route_request_id
-                ORDER BY created_at DESC, id DESC
-                LIMIT 1
+                WHERE id = :calculated_route_id
             ),
 
             ocorrencias_proximas AS (
                 SELECT
-                    o.id,
-                    o.rubrica,
-
                     ST_Distance(
-                        COALESCE(
-                            o.geog,
-                            o.geom::geography
-                        ),
-                        r.geometry::geography
-                    ) AS distancia_metros,
+                            COALESCE(o.geog, o.geom::geography),
+                            r.geography
+                        )
+                    AS distancia_metros,
 
                     CASE
                         WHEN o.rubrica ILIKE '%estupro%'
@@ -84,9 +88,10 @@ class RiskService:
                         o.geog,
                         o.geom::geography
                     ),
-                    r.geometry::geography,
+                    r.geography,
                     :radius_meters
                 )
+                __DATE_FILTER__
             ),
 
             pontuacao AS (
@@ -102,16 +107,16 @@ class RiskService:
                         SUM(
                             peso *
                             CASE
-                                WHEN distancia_metros <= 100
+                                WHEN distancia_metros <= :radius_meters * 0.2
                                     THEN 1.00
 
-                                WHEN distancia_metros <= 200
+                                WHEN distancia_metros <= :radius_meters * 0.4
                                     THEN 0.75
 
-                                WHEN distancia_metros <= 300
+                                WHEN distancia_metros <= :radius_meters * 0.6
                                     THEN 0.50
 
-                                WHEN distancia_metros <= 400
+                                WHEN distancia_metros <= :radius_meters * 0.8
                                     THEN 0.25
 
                                 ELSE 0.10
@@ -150,31 +155,31 @@ class RiskService:
 
             FROM rota r
             CROSS JOIN pontuacao p
-        """)
+        """.replace("__DATE_FILTER__", date_filter)
+        )
 
         result = await session.execute(
             query,
             {
-                "route_request_id": route_request_id,
-                "radius_meters": RiskService.RADIUS_METERS,
+                "calculated_route_id": calculated_route_id,
+                "radius_meters": settings.risk_radius_meters,
+                **(
+                    {"period_start": period_start, "period_end": period_end}
+                    if date_filter
+                    else {}
+                ),
             },
         )
 
         row = result.mappings().one_or_none()
 
         if row is None:
-            raise ValueError(
-                "Nenhuma rota calculada encontrada"
-            )
+            raise ValueError("Nenhuma rota calculada encontrada")
 
         return {
             "calculated_route_id": row["calculated_route_id"],
-            "quantidade_ocorrencias": row[
-                "quantidade_ocorrencias"
-            ],
-            "pontuacao_original": int(
-                row["pontuacao_original"]
-            ),
+            "quantidade_ocorrencias": row["quantidade_ocorrencias"],
+            "pontuacao_original": int(row["pontuacao_original"]),
             "pontuacao_ajustada": round(
                 float(row["pontuacao_ajustada"]),
                 2,
@@ -189,5 +194,11 @@ class RiskService:
                 if row["pontos_ajustados_por_km"] is not None
                 else None
             ),
-            "raio_analise_metros": RiskService.RADIUS_METERS,
+            "raio_analise_metros": settings.risk_radius_meters,
+            "metodologia": "exposicao-v2",
+            "fonte": settings.dataset_source,
+            "atualizado_em": settings.dataset_updated_at,
+            "periodo_inicio": period_start if date_filter else None,
+            "periodo_fim": period_end if date_filter else None,
+            "filtro_temporal_aplicado": bool(date_filter),
         }

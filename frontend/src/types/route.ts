@@ -15,3 +15,35 @@ export interface RouteResult {
   };
   message?: string;
 }
+
+export interface RiskResult {
+  calculated_route_id: number;
+  quantidade_ocorrencias: number;
+  pontuacao_original: number;
+  pontuacao_ajustada: number;
+  pontos_originais_por_km: number | null;
+  pontos_ajustados_por_km: number | null;
+  raio_analise_metros: number;
+  metodologia: string;
+  fonte: string;
+  atualizado_em: string | null;
+  periodo_inicio: string | null;
+  periodo_fim: string | null;
+  filtro_temporal_aplicado: boolean;
+}
+
+export interface RiskData {
+  status: { success: boolean; code: string; message: string };
+  result: RiskResult | null;
+}
+
+export interface RouteOption {
+  route: RouteResult;
+  risk: RiskData;
+}
+
+export interface CalculateResponse extends RouteOption {
+  success: boolean;
+  alternatives: RouteOption[];
+  message: string;
+}

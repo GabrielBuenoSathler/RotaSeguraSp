@@ -1,29 +1,14 @@
 import { useState } from "react";
 
 import MapView from "./components/MapView";
+import PointSearch from "./components/PointSearch";
 import { api } from "./services/api";
 
-import type { Coordinates, RouteResult } from "./types/route";
+import type {
+  CalculateResponse, Coordinates, RiskData, RouteOption, RouteResult,
+} from "./types/route";
 
 import "./App.css";
-
-type RiskResult = {
-  quantidade_ocorrencias: number;
-  pontuacao_original: number;
-  pontuacao_ajustada: number;
-  pontos_originais_por_km: number | null;
-  pontos_ajustados_por_km: number | null;
-  raio_analise_metros: number;
-};
-
-type RiskData = {
-  status: {
-    success: boolean;
-    code: string;
-    message: string;
-  };
-  result: RiskResult | null;
-};
 
 export default function App() {
   const [origin, setOrigin] = useState<Coordinates | null>(null);
@@ -41,10 +26,55 @@ export default function App() {
 
   const [result, setResult] = useState<RouteResult | null>(null);
   const [risk, setRisk] = useState<RiskData | null>(null);
+  const [options, setOptions] = useState<RouteOption[]>([]);
+  const [locating, setLocating] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const busy = loading || locating || searching;
+  const [geometry, setGeometry] = useState<[number, number][] | null>(null);
 
-  const [geometry, setGeometry] = useState<
-    [number, number][] | null
-  >(null);
+  function invalidateResult() {
+    setResult(null);
+    setRisk(null);
+    setGeometry(null);
+    setOptions([]);
+  }
+
+  function chooseRoute(option: RouteOption) {
+    setResult(option.route);
+    setRisk(option.risk);
+    setGeometry(option.route.geometry?.coordinates.map(
+      ([lon, lat]): [number, number] => [lat, lon]
+    ) ?? null);
+  }
+
+  function useCurrentLocation() {
+    if (!navigator.geolocation) {
+      setError("Seu navegador não oferece localização. Informe as coordenadas ou escolha no mapa.");
+      return;
+    }
+    setLocating(true);
+    setError("");
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        invalidateResult();
+        setOrigin({ lat: coords.latitude, lon: coords.longitude });
+        setSelecting("destination");
+        setLocating(false);
+      },
+      () => {
+        setError("Não foi possível obter sua localização. Verifique a permissão do navegador ou selecione a origem no mapa.");
+        setLocating(false);
+      },
+      { timeout: 10000, maximumAge: 60000 }
+    );
+  }
+
+  function swapPoints() {
+    invalidateResult();
+    setError("");
+    setOrigin(destination);
+    setDestination(origin);
+  }
 
   /**
    * Seleciona um ponto no mapa.
@@ -52,10 +82,9 @@ export default function App() {
    * O segundo clique define o destino.
    */
   function selectPoint(point: Coordinates) {
+    if (busy) return;
     setError("");
-    setResult(null);
-    setRisk(null);
-    setGeometry(null);
+    invalidateResult();
 
     if (selecting === "origin") {
       setOrigin(point);
@@ -71,9 +100,7 @@ export default function App() {
   function clearSelection() {
     setOrigin(null);
     setDestination(null);
-    setResult(null);
-    setRisk(null);
-    setGeometry(null);
+    invalidateResult();
     setError("");
     setSelecting("origin");
   }
@@ -82,6 +109,7 @@ export default function App() {
    * Cria a solicitação e calcula a rota e o risco.
    */
   async function calculateRoute() {
+    if (busy) return;
     if (!origin || !destination) {
       setError("Selecione a origem e o destino no mapa.");
       return;
@@ -89,9 +117,7 @@ export default function App() {
 
     setLoading(true);
     setError("");
-    setResult(null);
-    setRisk(null);
-    setGeometry(null);
+    invalidateResult();
 
     try {
       // 1. Criar a solicitação de rota.
@@ -118,51 +144,13 @@ export default function App() {
 
       // 3. Calcular a rota e o risco.
 
-      const calculateResponse = await api.post(
+      const calculateResponse = await api.post<CalculateResponse>(
         `/rota/${requestId}/calculate`
       );
 
       const data = calculateResponse.data;
-
-      // 4. Capturar os dados da rota.
-      // Aceita tanto a resposta nova (data.route)
-      // quanto a resposta antiga (dados na raiz).
-
-      const routeData = data.route ?? data;
-
-      setResult({
-        ...routeData,
-        route_request_id: requestId,
-      } as RouteResult);
-
-      // 5. Capturar o resultado do cálculo de risco.
-
-      if (data.risk) {
-        setRisk(data.risk as RiskData);
-      } else {
-        setRisk({
-          status: {
-            success: false,
-            code: "RISK_UNAVAILABLE",
-            message:
-              "A API não retornou o resultado da análise de risco.",
-          },
-          result: null,
-        });
-      }
-
-      // 6. Converter a geometria para o formato do Leaflet,
-      // caso a API já a retorne.
-
-      if (routeData.geometry?.coordinates) {
-        const points: [number, number][] =
-          routeData.geometry.coordinates.map(
-            ([longitude, latitude]: [number, number]) =>
-              [latitude, longitude]
-          );
-
-        setGeometry(points);
-      }
+      setOptions([{ route: data.route, risk: data.risk }, ...data.alternatives]);
+      chooseRoute(data);
     } catch (err: unknown) {
       console.error("Erro ao calcular rota:", err);
 
@@ -250,16 +238,16 @@ export default function App() {
 
       <header className="header">
         <div>
-          <p className="eyebrow">MOBILIDADE URBANA</p>
+          <p className="eyebrow">SÃO PAULO · MOBILIDADE CONSCIENTE</p>
 
-          <h1>RotaSegura</h1>
+          <h1><span className="brand-mark" aria-hidden="true">↗</span> RotaSegura<span className="brand-city">SP</span></h1>
 
           <p className="subtitle">
             Planeje seu trajeto por São Paulo.
           </p>
         </div>
 
-        <span className="status">MVP</span>
+        <span className="status"><span className="status-dot" /> Versão experimental</span>
       </header>
 
       {/* Área principal */}
@@ -268,12 +256,18 @@ export default function App() {
         {/* Painel lateral */}
 
         <aside className="sidebar">
-          <h2>Planejar rota</h2>
+          <p className="eyebrow">SEU PRÓXIMO TRAJETO</p>
+          <h2>Por onde vamos?</h2>
 
           <p className="instructions">
-            Clique no mapa para selecionar os pontos.
-            Primeiro escolha a origem e depois o destino.
+            Escolha a origem e o destino no mapa, por endereço ou coordenadas.
           </p>
+
+          <ol className="planning-steps" aria-label="Etapas do planejamento">
+            <li className={origin ? "complete" : "current"}>1 <span>Origem</span></li>
+            <li className={destination ? "complete" : origin ? "current" : ""}>2 <span>Destino</span></li>
+            <li className={result ? "complete" : origin && destination ? "current" : ""}>3 <span>Trajeto</span></li>
+          </ol>
 
           {/* Origem */}
 
@@ -282,6 +276,8 @@ export default function App() {
             className={`selection-item ${
               selecting === "origin" ? "active" : ""
             }`}
+            aria-pressed={selecting === "origin"}
+            disabled={busy}
             onClick={() => setSelecting("origin")}
           >
             <span className="point-icon origin-icon">A</span>
@@ -300,6 +296,8 @@ export default function App() {
             className={`selection-item ${
               selecting === "destination" ? "active" : ""
             }`}
+            aria-pressed={selecting === "destination"}
+            disabled={busy}
             onClick={() => setSelecting("destination")}
           >
             <span className="point-icon destination-icon">B</span>
@@ -311,6 +309,18 @@ export default function App() {
             </span>
           </button>
 
+          <PointSearch key={selecting} target={selecting} disabled={busy}
+            onSelect={selectPoint} onSearching={setSearching} />
+
+          <button type="button" className="secondary-button" disabled={busy}
+            onClick={useCurrentLocation}>
+            {locating ? "Obtendo localização…" : "Usar minha localização como origem"}
+          </button>
+          <button type="button" className="secondary-button"
+            disabled={busy || !origin || !destination} onClick={swapPoints}>
+            Inverter origem e destino
+          </button>
+
           {/* Meio de transporte */}
 
           <label htmlFor="transport" className="field-label">
@@ -320,9 +330,11 @@ export default function App() {
           <select
             id="transport"
             className="transport-select"
+            disabled={busy}
             value={transportMode}
             onChange={(event) =>
-              setTransportMode(event.target.value)
+              { setTransportMode(event.target.value);
+                invalidateResult(); setError(""); }
             }
           >
             <option value="auto">Carro</option>
@@ -337,9 +349,9 @@ export default function App() {
             type="button"
             className="primary-button"
             onClick={calculateRoute}
-            disabled={!origin || !destination || loading}
+            disabled={!origin || !destination || busy}
           >
-            {loading ? "Calculando..." : "Calcular rota"}
+            {loading ? "Calculando trajeto…" : "Calcular rota →"}
           </button>
 
           {/* Limpar */}
@@ -348,10 +360,14 @@ export default function App() {
             type="button"
             className="secondary-button"
             onClick={clearSelection}
-            disabled={loading}
+            disabled={busy}
           >
             Limpar seleção
           </button>
+
+          <p className="selection-help" role="status" aria-live="polite">
+            {loading ? "Estamos calculando o trajeto e analisando as ocorrências." : !origin ? "Comece escolhendo sua origem no mapa." : !destination ? "Agora escolha seu destino no mapa." : "Tudo pronto. Calcule para ver o trajeto e a análise."}
+          </p>
 
           {/* Mensagens de erro */}
 
@@ -365,8 +381,28 @@ export default function App() {
 
           {/* Resultado da rota */}
 
+          {options.length > 0 && (
+            <section className="route-result" aria-label="Comparação de trajetos">
+              <h3>Compare os trajetos</h3>
+              {options.length === 1 && <p>O serviço encontrou apenas um trajeto para estes pontos.</p>}
+              {options.map((option, index) => (
+                <button type="button" className="route-option"
+                  key={option.route.calculated_route_id}
+                  aria-pressed={result?.calculated_route_id === option.route.calculated_route_id}
+                  onClick={() => chooseRoute(option)}>
+                  <strong>{index === 0 ? "Trajeto principal" : `Alternativa ${index}`}</strong>
+                  <span>{option.route.distance_km?.toFixed(2)} km · {formatDuration(option.route.duration_seconds)}</span>
+                  <span>{option.risk.status.success && option.risk.result
+                    ? `${option.risk.result.pontuacao_ajustada.toLocaleString("pt-BR")} pontos de exposição`
+                    : "Análise indisponível"}</span>
+                </button>
+              ))}
+              <p className="hint">Menor pontuação indica menor exposição às ocorrências da base. Compare também a distância e a duração.</p>
+            </section>
+          )}
+
           {result && (
-            <section className="route-result">
+            <section className="route-result" aria-live="polite">
               <h3>Resultado da rota</h3>
 
               <div className="result-grid">
@@ -408,7 +444,7 @@ export default function App() {
           {/* Resultado do cálculo de risco */}
 
           {risk && (
-            <section className="route-result">
+            <section className="route-result" aria-live="polite">
               <h3>Análise de risco</h3>
 
               {risk.status.success && risk.result ? (
@@ -470,6 +506,11 @@ export default function App() {
                     {risk.result.raio_analise_metros} metros
                     da rota.
                   </p>
+                  <p className="hint">Fonte: {risk.result.fonte}. Atualização: {risk.result.atualizado_em
+                    ? new Date(`${risk.result.atualizado_em}T12:00:00`).toLocaleDateString("pt-BR") : "não informada"}.</p>
+                  <p className="hint">{risk.result.filtro_temporal_aplicado && risk.result.periodo_inicio && risk.result.periodo_fim
+                    ? `Período: ${new Date(risk.result.periodo_inicio).toLocaleDateString("pt-BR")} a ${new Date(risk.result.periodo_fim).toLocaleDateString("pt-BR")}.`
+                    : "Período: todas as datas da base; filtro temporal não configurado."}</p>
                 </>
               ) : (
                 <div className="error-message" role="status">
@@ -501,11 +542,11 @@ export default function App() {
           <div className="map-toolbar">
             <span>
               {selecting === "origin"
-                ? "Selecione a origem"
-                : "Selecione o destino"}
+                ? "Clique no mapa para definir a origem"
+                : "Clique no mapa para definir o destino"}
             </span>
 
-            <span>São Paulo, SP</span>
+            <span className="map-location">São Paulo, SP</span>
           </div>
 
           <MapView
@@ -514,6 +555,11 @@ export default function App() {
             geometry={geometry}
             onSelectPoint={selectPoint}
           />
+          <div className="map-legend" aria-label="Legenda do mapa">
+            <span><i className="legend-origin" /> Origem</span>
+            <span><i className="legend-destination" /> Destino</span>
+            <span><i className="legend-route" /> Trajeto calculado</span>
+          </div>
         </section>
       </section>
 

@@ -7,8 +7,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 
-from app.core.database import Base
-from app.core.config import settings
+from app.core.database import DATABASE_URL, Base
 
 # Importe seus models
 from app.models.route_request import RouteRequest
@@ -24,14 +23,7 @@ target_metadata = Base.metadata
 
 
 def get_database_url():
-    return (
-        f"postgresql+asyncpg://"
-        f"{settings.postgres_user}:"
-        f"{settings.postgres_password}@"
-        f"{settings.postgres_host}:"
-        f"{settings.postgres_port}/"
-        f"Criminalidade"
-    )
+    return DATABASE_URL
 
 
 # Não deixa o Alembic considerar tabelas existentes

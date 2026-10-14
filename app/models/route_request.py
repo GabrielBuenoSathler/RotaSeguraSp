@@ -1,18 +1,15 @@
 from datetime import datetime
-from enum import Enum
+from enum import Enum, StrEnum
 
 from geoalchemy2 import Geometry
-from sqlalchemy import BigInteger, DateTime, func
+from sqlalchemy import BigInteger, DateTime, Float, ForeignKey, Index, func, text
 from sqlalchemy.dialects.postgresql import ENUM as PGEnum
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import BigInteger, DateTime, Float, ForeignKey
-
 
 from app.core.database import Base
 
 
-class TransportMode(str, Enum):
+class TransportMode(StrEnum):
     AUTO = "auto"
     BICYCLE = "bicycle"
     BUS = "bus"
@@ -35,14 +32,12 @@ class RouteRequest(Base):
 
     id: Mapped[int] = mapped_column(
         BigInteger,
-
         primary_key=True,
         init=False,
     )
 
     origin: Mapped[object] = mapped_column(
         Geometry("POINT", srid=4326),
-
         nullable=False,
     )
 
@@ -68,184 +63,41 @@ class RouteRequest(Base):
     )
 
 
-class  calculated_routes(Base): 
+class CalculatedRoute(Base):
     __tablename__ = "calculated_routes"
+    __table_args__ = (
+        Index(
+            "ix_calculated_routes_request_latest",
+            "route_request_id",
+            text("created_at DESC"),
+            text("id DESC"),
+        ),
+    )
 
-    id: Mapped[int] = mapped_column(
-            BigInteger,
-            primary_key=True,
-            init=False
-        )
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, init=False)
 
     route_request_id: Mapped[int] = mapped_column(
         ForeignKey("route_requests.id"),
         nullable=False,
-        )
+    )
 
     geometry: Mapped[object] = mapped_column(
         Geometry("LINESTRING", srid=4326),
         nullable=False,
-        )
+    )
 
     distance_km: Mapped[float] = mapped_column(
-
         Float,
         nullable=False,
-        )
+    )
 
     duration_seconds: Mapped[int] = mapped_column(
         nullable=False,
-        )
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
         nullable=False,
         init=False,
-
-        )                            
-
-                                        
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    )

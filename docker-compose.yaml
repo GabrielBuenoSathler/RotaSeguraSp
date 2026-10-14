@@ -17,6 +17,13 @@ services:
     ports:
       - "8000:8000"
 
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
     networks:
       - rotasegura-network
 
@@ -25,7 +32,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        VITE_API_URL: http://localhost:8000
+        VITE_API_URL: ${VITE_API_URL:-/api}
 
     container_name: rotasegura-frontend
     restart: unless-stopped
@@ -34,7 +41,8 @@ services:
       - "3000:80"
 
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
     networks:
       - rotasegura-network

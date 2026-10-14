@@ -1,10 +1,11 @@
 import httpx
 
+from app.core.config import settings
+
 
 class ValhallaService:
-
-    def __init__(self, base_url: str = "http://valhalla:8002"):
-        self.base_url = base_url
+    def __init__(self, base_url: str | None = None):
+        self.base_url = (base_url or settings.valhalla_url).rstrip("/")
 
     async def calculate_route(
         self,
@@ -13,6 +14,7 @@ class ValhallaService:
         destination_lat: float,
         destination_lon: float,
         costing: str = "auto",
+        alternates: int = 0,
     ) -> dict:
 
         payload = {
@@ -29,8 +31,12 @@ class ValhallaService:
             "costing": costing,
             "units": "kilometers",
         }
+        if alternates:
+            payload["alternates"] = alternates
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(
+            timeout=settings.valhalla_timeout_seconds
+        ) as client:
             response = await client.post(
                 f"{self.base_url}/route",
                 json=payload,
