@@ -77,3 +77,52 @@ def test_address_endpoint_validates_query_and_returns_places():
         assert response.status_code == 200
         assert response.json()[0]["display_name"] == "Paulista"
         provider.assert_awaited_once_with("Paulista")
+
+
+@pytest.mark.asyncio
+async def test_reverse_uses_street_and_keeps_selected_coordinates():
+    with patch.object(GeocodingService, "_request", new_callable=AsyncMock) as request:
+        request.return_value = {
+            "lat": "-23.9",
+            "lon": "-46.9",
+            "address": {
+                "road": "Avenida Paulista",
+                "house_number": "1000",
+                "suburb": "Bela Vista",
+                "city": "São Paulo",
+            },
+        }
+        place = await GeocodingService.reverse(-23.56, -46.65)
+        assert place.display_name == "Avenida Paulista, 1000, Bela Vista, São Paulo"
+        assert (place.lat, place.lon) == (-23.56, -46.65)
+
+
+@pytest.mark.asyncio
+async def test_reverse_does_not_invent_an_address():
+    with patch.object(GeocodingService, "_request", new_callable=AsyncMock) as request:
+        request.return_value = {"error": "Unable to geocode"}
+        assert await GeocodingService.reverse(0, 0) is None
+
+
+def test_reverse_endpoint_validates_coordinates():
+    with (
+        TestClient(app) as client,
+        patch.object(GeocodingService, "reverse", new_callable=AsyncMock) as provider,
+    ):
+        assert (
+            client.get("/places/reverse", params={"lat": 91, "lon": 0}).status_code
+            == 422
+        )
+        assert (
+            client.get("/places/reverse", params={"lat": "nan", "lon": 0}).status_code
+            == 422
+        )
+        provider.assert_not_awaited()
+        provider.return_value = {
+            "display_name": "Praça da Sé",
+            "lat": -23.55,
+            "lon": -46.63,
+        }
+        response = client.get("/places/reverse", params={"lat": -23.55, "lon": -46.63})
+        assert response.status_code == 200
+        assert response.json()["display_name"] == "Praça da Sé"

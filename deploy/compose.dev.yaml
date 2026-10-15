@@ -1,0 +1,23 @@
+services:
+  backend:
+    command: [uvicorn, app.main:app, --host, 0.0.0.0, --port, '8000', --reload]
+    volumes:
+      - ../app:/app/app
+      - ../alembic:/app/alembic
+    ports:
+      - '127.0.0.1:${BACKEND_PORT:-8000}:8000'
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile.dev
+    environment:
+      VITE_API_URL: /api
+    volumes:
+      - ../frontend:/app
+      - frontend-modules:/app/node_modules
+    ports: !override
+      - '127.0.0.1:${FRONTEND_PORT:-5173}:5173'
+
+volumes:
+  frontend-modules:

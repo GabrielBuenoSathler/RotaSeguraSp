@@ -7,9 +7,11 @@ services:
     restart: unless-stopped
 
     env_file:
-      - .env
+      - ${BACKEND_ENV_FILE:?Use um arquivo contendo apenas configurações e credenciais da aplicação}
 
     environment:
+      POSTGRES_USER: ${POSTGRES_APP_USER:?Configure um usuário restrito para a aplicação}
+      POSTGRES_PASSWORD: ${POSTGRES_APP_PASSWORD:?Configure a senha do usuário restrito}
       POSTGRES_HOST: postgres_ocorrencias
       POSTGRES_PORT: 5432
       APP_ENV: production

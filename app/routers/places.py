@@ -18,7 +18,22 @@ async def search_places(q: Annotated[str, Query(min_length=3, max_length=200)]):
     except GeocodingUnavailableError as exc:
         raise HTTPException(
             503,
-            "A busca por endereço está indisponível. Informe as coordenadas ou selecione no mapa.",
+            "A busca por endereço está indisponível. Selecione um ponto no mapa ou tente novamente.",
         ) from exc
     except (httpx.HTTPError, ValueError) as exc:
         raise HTTPException(502, "Não foi possível consultar os endereços.") from exc
+
+
+@router.get("/reverse", response_model=Place | None)
+async def reverse_place(
+    lat: Annotated[float, Query(ge=-90, le=90, allow_inf_nan=False)],
+    lon: Annotated[float, Query(ge=-180, le=180, allow_inf_nan=False)],
+):
+    try:
+        return await GeocodingService.reverse(lat, lon)
+    except GeocodingUnavailableError as exc:
+        raise HTTPException(503, "A identificação da rua está indisponível.") from exc
+    except (httpx.HTTPError, ValueError) as exc:
+        raise HTTPException(
+            502, "Não foi possível identificar a rua deste ponto."
+        ) from exc

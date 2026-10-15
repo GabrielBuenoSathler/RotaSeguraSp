@@ -1,3 +1,4 @@
+import hashlib
 from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -52,6 +53,21 @@ def session():
         transport_mode=TransportMode.AUTO,
     )
     value.execute.return_value = result
+    original_execute = value.execute
+
+    async def execute(statement, *args, **kwargs):
+        parameters = statement.compile().params
+        if (
+            parameters.get("access_token_hash_1")
+            != hashlib.sha256(b"test-secret").hexdigest()
+        ):
+            denied = MagicMock()
+            denied.one_or_none.return_value = None
+            return denied
+        return await original_execute(statement, *args, **kwargs)
+
+    value.execute = AsyncMock(side_effect=execute)
+    value.query_result = result
 
     async def flush():
         for index, call in enumerate(value.add.call_args_list, start=7):
@@ -72,7 +88,9 @@ def client(session):
         yield session
 
     app.dependency_overrides[get_session] = override_session
+    app.middleware_stack = None
     with TestClient(app) as value:
+        value.headers["Authorization"] = "Bearer test-secret"
         yield value
     app.dependency_overrides.clear()
 
@@ -121,7 +139,7 @@ def test_create_failure_rolls_back(client, session):
 
 
 def test_missing_request_does_not_call_provider(client, session, providers):
-    session.execute.return_value.one_or_none.return_value = None
+    session.query_result.one_or_none.return_value = None
     assert client.post("/rota/42/calculate").status_code == 404
     providers[0].assert_not_awaited()
 
@@ -242,3 +260,29 @@ def test_polyline6_known_coordinates():
 def test_invalid_polylines(shape):
     with pytest.raises(ValueError):
         decode_valhalla_shape(shape)
+
+
+def test_route_secret_is_required(client, session, providers):
+    for headers in ({}, {"Authorization": "Bearer wrong-secret"}):
+        client.headers.pop("Authorization", None)
+        response = client.post("/rota/42/calculate", headers=headers)
+        assert response.status_code == 404
+    providers[0].assert_not_awaited()
+    session.add.assert_not_called()
+
+
+def test_creation_stores_only_token_hash(client, session):
+    response = client.post(
+        "/rota/",
+        json={
+            "origin_lat": 0,
+            "origin_lon": 0,
+            "destination_lat": 1,
+            "destination_lon": 1,
+        },
+    )
+    token = response.json()["access_token"]
+    assert len(token) >= 40
+    stored = session.add.call_args.args[0].access_token_hash
+    assert stored == hashlib.sha256(token.encode()).hexdigest()
+    assert stored != token

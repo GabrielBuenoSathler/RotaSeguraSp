@@ -1,116 +1,89 @@
-# =========================
-# Environment / Secrets
-# =========================
+# Configurações locais e segredos (preservar modelos versionáveis)
 .env
 .env.*
 !.env.example
+!.env.*.example
+*.local
+*.pem
+*.key
 
-# =========================
-# Python
-# =========================
+# Python e ambientes virtuais
 __pycache__/
 *.py[cod]
-*.pyo
-*.pyd
-
-# Virtual environments
 .venv/
 venv/
 env/
-
-# =========================
-# Poetry
-# =========================
 .poetry/
-# Alembic
-alembic/versions/__pycache__/
-alembic/__pycache__/
+*.egg-info/
+.eggs/
+build/
+dist/
 
-# =========================
-# Testing
-# =========================
+# Testes, cobertura e ferramentas de análise
 .pytest_cache/
-.coverage
-htmlcov/
-
-# =========================
-# Type checkers / linters
-# =========================
-.mypy_cache/
 .ruff_cache/
+.mypy_cache/
+.pyright/
+.tox/
+.nox/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+coverage/
 
-# =========================
-# IDE
-# =========================
-.vscode/
-.idea/
+# Node, Vite e TypeScript
+node_modules/
+.vite/
+dist-ssr/
+*.tsbuildinfo
+.npm/
+.pnpm-store/
+.eslintcache
+playwright-report/
+test-results/
 
-# =========================
-# OS
-# =========================
-.DS_Store
-Thumbs.db
-
-# =========================
-# Logs
-# =========================
-*.log
-logs/
-
-# =========================
-# Docker
-# =========================
-docker-compose.override.yml
-custom_files/
-# =========================
-# Database / dumps
-# =========================
-*.sql
+# Dados locais, volumes e backups (SQL de inicialização deve ser versionado)
+/custom_files/
+/data/
+/backups/
+/dumps/
+/pgdata/
+/postgres-data/
 *.dump
 *.backup
+*.sql.gz
+*.sql.bz2
+*.sql.xz
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+*.sqlite3-journal
 
-# =========================
-# Temporary files
-# =========================
-*.tmp
-*.temp
-*.swp
+# Sobrescritas locais do Docker Compose
+compose.override.yml
+compose.override.yaml
+docker-compose.override.yml
+docker-compose.override.yaml
 
-
-# Dependências
-node_modules/
-
-# Build
-dist/
-dist-ssr/
-
-# Vite
-.vite/
-
-# Variáveis de ambiente e segredos
-.env
-.env.*
-!.env.example
-
-# Logs
+# Logs e arquivos temporários
 logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
+yarn-error.log*
 pnpm-debug.log*
-
-# Testes e cobertura
-coverage/
-
-# TypeScript
-*.tsbuildinfo
-
-# IDEs
-.vscode/
-.idea/
+lerna-debug.log*
+*.tmp
+*.temp
 *.swp
 *.swo
+*~
 
-# Sistema operacional
+# Editores e sistema operacional
+.idea/
+.vscode/*
+!.vscode/extensions.json
 .DS_Store
 Thumbs.db
+Desktop.ini

@@ -17,6 +17,7 @@ class RouteRequestCreate(BaseModel):
 
 
 class RouteRequestResponse(BaseModel):
+    access_token: str
     id: int
     created_at: datetime
     message: str
@@ -37,7 +38,32 @@ class RouteResult(BaseModel):
     geometry: RouteGeometry
 
 
+class CrimeRiskResult(BaseModel):
+    crime: str
+    quantidade_ocorrencias: int
+    pontuacao_original: int
+    pontuacao_ajustada: float
+    pontos_originais_por_km: float | None
+    pontos_ajustados_por_km: float | None
+
+
+class MonthlyCrimeResult(BaseModel):
+    crime: str
+    quantidade_ocorrencias: int
+    pontuacao_ajustada: float
+
+
+class MonthlyOccurrenceResult(BaseModel):
+    mes: date | None
+    quantidade_ocorrencias: int
+    pontuacao_ajustada: float
+    crimes: list[MonthlyCrimeResult]
+
+
 class RiskResult(BaseModel):
+    ocorrencias_por_mes: list[MonthlyOccurrenceResult] = Field(default_factory=list)
+    data_agrupamento_configurada: bool = False
+    riscos_por_crime: list[CrimeRiskResult] = Field(default_factory=list)
     calculated_route_id: int
     quantidade_ocorrencias: int
     pontuacao_original: int
@@ -81,9 +107,9 @@ class ValhallaSummary(BaseModel):
 
 
 class ValhallaLeg(BaseModel):
-    shape: str = Field(min_length=1)
+    shape: str = Field(min_length=1, max_length=200000)
 
 
 class ValhallaTrip(BaseModel):
     summary: ValhallaSummary
-    legs: list[ValhallaLeg] = Field(min_length=1)
+    legs: list[ValhallaLeg] = Field(min_length=1, max_length=16)

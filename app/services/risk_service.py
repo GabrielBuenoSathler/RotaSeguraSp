@@ -21,6 +21,14 @@ class RiskService:
             date_filter = (
                 f'AND o."{column}" >= :period_start AND o."{column}" <= :period_end'
             )
+        group_column = (
+            settings.occurrence_group_date_column or settings.occurrence_date_column
+        )
+        month_expression = (
+            f"DATE_TRUNC('month', o.\"{group_column}\"::timestamp)::date"
+            if group_column
+            else "NULL::date"
+        )
         query = text(
             """
             WITH rota AS (
@@ -35,6 +43,8 @@ class RiskService:
 
             ocorrencias_proximas AS (
                 SELECT
+                    COALESCE(NULLIF(LOWER(BTRIM(o.rubrica)), ''), 'Não informado') AS crime,
+                    __MONTH_EXPRESSION__ AS mes,
                     ST_Distance(
                             COALESCE(o.geog, o.geom::geography),
                             r.geography
@@ -94,38 +104,45 @@ class RiskService:
                 __DATE_FILTER__
             ),
 
-            pontuacao AS (
-                SELECT
-                    COUNT(*) AS quantidade_ocorrencias,
-
-                    COALESCE(
-                        SUM(peso),
-                        0
-                    ) AS pontuacao_original,
-
-                    COALESCE(
-                        SUM(
-                            peso *
-                            CASE
-                                WHEN distancia_metros <= :radius_meters * 0.2
-                                    THEN 1.00
-
-                                WHEN distancia_metros <= :radius_meters * 0.4
-                                    THEN 0.75
-
-                                WHEN distancia_metros <= :radius_meters * 0.6
-                                    THEN 0.50
-
-                                WHEN distancia_metros <= :radius_meters * 0.8
-                                    THEN 0.25
-
-                                ELSE 0.10
-                            END
-                        ),
-                        0
-                    ) AS pontuacao_ajustada
-
+            ocorrencias_ponderadas AS (
+                SELECT *, peso * CASE
+                    WHEN distancia_metros <= :radius_meters * 0.2 THEN 1.00
+                    WHEN distancia_metros <= :radius_meters * 0.4 THEN 0.75
+                    WHEN distancia_metros <= :radius_meters * 0.6 THEN 0.50
+                    WHEN distancia_metros <= :radius_meters * 0.8 THEN 0.25
+                    ELSE 0.10
+                END AS pontos_ajustados
                 FROM ocorrencias_proximas
+            ),
+            pontuacao AS (
+                SELECT COUNT(*) AS quantidade_ocorrencias,
+                       COALESCE(SUM(peso), 0) AS pontuacao_original,
+                       COALESCE(SUM(pontos_ajustados), 0) AS pontuacao_ajustada
+                FROM ocorrencias_ponderadas
+            ),
+            pontuacao_por_mes_crime AS (
+                SELECT mes, crime, COUNT(*) AS quantidade_ocorrencias,
+                       SUM(pontos_ajustados) AS pontuacao_ajustada
+                FROM ocorrencias_ponderadas
+                GROUP BY mes, crime
+            ),
+            pontuacao_por_mes AS (
+                SELECT mes, SUM(quantidade_ocorrencias) AS quantidade_ocorrencias,
+                       SUM(pontuacao_ajustada) AS pontuacao_ajustada,
+                       jsonb_agg(jsonb_build_object(
+                           'crime', crime,
+                           'quantidade_ocorrencias', quantidade_ocorrencias,
+                           'pontuacao_ajustada', ROUND(pontuacao_ajustada, 2)
+                       ) ORDER BY pontuacao_ajustada DESC, crime) AS crimes
+                FROM pontuacao_por_mes_crime
+                GROUP BY mes
+            ),
+            pontuacao_por_crime AS (
+                SELECT crime, COUNT(*) AS quantidade_ocorrencias,
+                       SUM(peso) AS pontuacao_original,
+                       SUM(pontos_ajustados) AS pontuacao_ajustada
+                FROM ocorrencias_ponderadas
+                GROUP BY crime
             )
 
             SELECT
@@ -133,9 +150,31 @@ class RiskService:
                 r.route_request_id,
                 r.distance_km,
 
+                COALESCE((
+                    SELECT jsonb_agg(jsonb_build_object(
+                        'mes', m.mes,
+                        'quantidade_ocorrencias', m.quantidade_ocorrencias,
+                        'pontuacao_ajustada', ROUND(m.pontuacao_ajustada, 2),
+                        'crimes', m.crimes
+                    ) ORDER BY m.mes DESC NULLS LAST)
+                    FROM pontuacao_por_mes m
+                ), '[]'::jsonb) AS ocorrencias_por_mes,
                 p.quantidade_ocorrencias,
                 p.pontuacao_original,
                 p.pontuacao_ajustada,
+                COALESCE((
+                    SELECT jsonb_agg(jsonb_build_object(
+                        'crime', c.crime,
+                        'quantidade_ocorrencias', c.quantidade_ocorrencias,
+                        'pontuacao_original', c.pontuacao_original,
+                        'pontuacao_ajustada', ROUND(c.pontuacao_ajustada, 2),
+                        'pontos_originais_por_km', ROUND(
+                            (c.pontuacao_original / NULLIF(r.distance_km, 0))::numeric, 2),
+                        'pontos_ajustados_por_km', ROUND(
+                            (c.pontuacao_ajustada / NULLIF(r.distance_km, 0))::numeric, 2)
+                    ) ORDER BY c.pontuacao_ajustada DESC, c.crime)
+                    FROM pontuacao_por_crime c
+                ), '[]'::jsonb) AS riscos_por_crime,
 
                 ROUND(
                     (
@@ -155,7 +194,9 @@ class RiskService:
 
             FROM rota r
             CROSS JOIN pontuacao p
-        """.replace("__DATE_FILTER__", date_filter)
+        """.replace("__DATE_FILTER__", date_filter).replace(
+                "__MONTH_EXPRESSION__", month_expression
+            )
         )
 
         result = await session.execute(
@@ -178,6 +219,9 @@ class RiskService:
 
         return {
             "calculated_route_id": row["calculated_route_id"],
+            "riscos_por_crime": row["riscos_por_crime"],
+            "ocorrencias_por_mes": row["ocorrencias_por_mes"],
+            "data_agrupamento_configurada": bool(group_column),
             "quantidade_ocorrencias": row["quantidade_ocorrencias"],
             "pontuacao_original": int(row["pontuacao_original"]),
             "pontuacao_ajustada": round(

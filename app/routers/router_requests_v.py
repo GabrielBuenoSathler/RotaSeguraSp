@@ -1,8 +1,10 @@
+import hashlib
 import logging
+import secrets
 from typing import Annotated
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Path
+from fastapi import APIRouter, Depends, Header, HTTPException, Path
 from geoalchemy2.elements import WKTElement
 from pydantic import ValidationError
 from sqlalchemy import func, select
@@ -63,6 +65,8 @@ def parse_trip(data: dict) -> tuple[ValhallaTrip, list[tuple[float, float]]]:
         if coordinates and points and coordinates[-1] == points[0]:
             points = points[1:]
         coordinates.extend(points)
+        if len(coordinates) > 20000:
+            raise ValueError("Geometria excede o limite de pontos")
     if len(coordinates) < 2:
         raise ValueError("A geometria da rota possui pontos insuficientes")
     return trip, coordinates
@@ -70,7 +74,9 @@ def parse_trip(data: dict) -> tuple[ValhallaTrip, list[tuple[float, float]]]:
 
 @router.post("/", status_code=201, response_model=RouteRequestResponse)
 async def create_route(route: RouteRequestCreate, session: Session):
+    token = secrets.token_urlsafe(32)
     db_route = RouteRequest(
+        access_token_hash=hashlib.sha256(token.encode()).hexdigest(),
         origin=WKTElement(f"POINT({route.origin_lon} {route.origin_lat})", srid=4326),
         destination=WKTElement(
             f"POINT({route.destination_lon} {route.destination_lat})", srid=4326
@@ -86,6 +92,7 @@ async def create_route(route: RouteRequestCreate, session: Session):
         logger.exception("Erro ao cadastrar solicitação de rota")
         raise HTTPException(500, "Erro ao cadastrar a rota.") from exc
     return {
+        "access_token": token,
         "id": db_route.id,
         "created_at": db_route.created_at,
         "message": "Rota cadastrada com sucesso",
@@ -96,7 +103,11 @@ async def create_route(route: RouteRequestCreate, session: Session):
 async def calculate_route(
     route_request_id: Annotated[int, Path(gt=0)],
     session: Session,
+    authorization: Annotated[str | None, Header(max_length=100)] = None,
 ):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(404, "Solicitação de rota não encontrada")
+    token_hash = hashlib.sha256(authorization[7:].encode()).hexdigest()
     result = await session.execute(
         select(
             RouteRequest.id,
@@ -105,7 +116,10 @@ async def calculate_route(
             func.ST_Y(RouteRequest.destination).label("destination_lat"),
             func.ST_X(RouteRequest.destination).label("destination_lon"),
             RouteRequest.transport_mode,
-        ).where(RouteRequest.id == route_request_id)
+        ).where(
+            RouteRequest.id == route_request_id,
+            RouteRequest.access_token_hash == token_hash,
+        )
     )
     request = result.one_or_none()
     if request is None:

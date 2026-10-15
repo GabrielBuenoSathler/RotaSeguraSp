@@ -2,7 +2,16 @@ from datetime import datetime
 from enum import Enum, StrEnum
 
 from geoalchemy2 import Geometry
-from sqlalchemy import BigInteger, DateTime, Float, ForeignKey, Index, func, text
+from sqlalchemy import (
+    BigInteger,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    String,
+    func,
+    text,
+)
 from sqlalchemy.dialects.postgresql import ENUM as PGEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -53,6 +62,12 @@ class RouteRequest(Base):
             values_callable=enum_values,
         ),
         nullable=False,
+    )
+
+    access_token_hash: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+        default=None,
     )
 
     created_at: Mapped[datetime] = mapped_column(

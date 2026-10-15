@@ -28,6 +28,7 @@ async def spatial_session(monkeypatch):
     engine = create_async_engine(database_url, echo=False)
     monkeypatch.setattr(settings, "risk_radius_meters", 50)
     monkeypatch.setattr(settings, "occurrence_date_column", None)
+    monkeypatch.setattr(settings, "occurrence_group_date_column", None)
     async with engine.connect() as connection:
         transaction = await connection.begin()
         await connection.execute(
@@ -159,3 +160,75 @@ async def test_concurrent_analyses_do_not_choose_the_latest_route(spatial_sessio
     assert first["quantidade_ocorrencias"] == 1
     assert second["calculated_route_id"] == 2
     assert second["quantidade_ocorrencias"] == 0
+
+
+async def test_risk_is_grouped_by_crime_and_matches_total(spatial_session):
+    await occurrence(spatial_session, 0, "roubo")
+    await occurrence(spatial_session, 25, " ROUBO ")
+    await occurrence(spatial_session, 45, "furto")
+    await occurrence(spatial_session, 51, "homicídio")
+    risk = await RiskService.calculate(spatial_session, 1)
+    crimes = risk["riscos_por_crime"]
+    assert [item["crime"] for item in crimes] == ["roubo", "furto"]
+    assert crimes[0] == {
+        "crime": "roubo",
+        "quantidade_ocorrencias": 2,
+        "pontuacao_original": 6,
+        "pontuacao_ajustada": 4.5,
+        "pontos_originais_por_km": 3,
+        "pontos_ajustados_por_km": 2.25,
+    }
+    assert (
+        sum(item["quantidade_ocorrencias"] for item in crimes)
+        == risk["quantidade_ocorrencias"]
+    )
+    assert (
+        sum(item["pontuacao_original"] for item in crimes) == risk["pontuacao_original"]
+    )
+    assert sum(item["pontuacao_ajustada"] for item in crimes) == pytest.approx(
+        risk["pontuacao_ajustada"]
+    )
+    assert (await RiskService.calculate(spatial_session, 2))["riscos_por_crime"] == []
+
+
+async def test_crime_with_missing_name_and_zero_length(spatial_session):
+    await occurrence(spatial_session, 0, None)
+    await occurrence(spatial_session, 0, "  ")
+    risk = await RiskService.calculate(spatial_session, 3)
+    assert len(risk["riscos_por_crime"]) == 1
+    crime = risk["riscos_por_crime"][0]
+    assert crime["crime"] == "Não informado"
+    assert crime["quantidade_ocorrencias"] == 2
+    assert crime["pontos_ajustados_por_km"] is None
+    assert crime["pontos_originais_por_km"] is None
+
+
+async def test_month_groups_preserve_undated_events_and_totals(
+    spatial_session, monkeypatch
+):
+    monkeypatch.setattr(settings, "occurrence_group_date_column", "ocorrido_em")
+    await occurrence(spatial_session, 0, "roubo", age_days=1)
+    await occurrence(spatial_session, 20, "furto", age_days=70)
+    await spatial_session.execute(
+        text(
+            "INSERT INTO ocorrencias_stg (rubrica, geog) VALUES ('furto', ST_GeogFromText('SRID=4326;POINT(0.005 0)'))"
+        )
+    )
+    risk = await RiskService.calculate(spatial_session, 1)
+    groups = risk["ocorrencias_por_mes"]
+    assert risk["data_agrupamento_configurada"]
+    assert len(groups) == 3
+    assert groups[-1]["mes"] is None
+    assert groups[-1]["quantidade_ocorrencias"] == 1
+    assert (
+        sum(group["quantidade_ocorrencias"] for group in groups)
+        == risk["quantidade_ocorrencias"]
+    )
+    assert sum(group["pontuacao_ajustada"] for group in groups) == pytest.approx(
+        risk["pontuacao_ajustada"]
+    )
+    assert all(
+        sum(crime["quantidade_ocorrencias"] for crime in group["crimes"])
+        == group["quantidade_ocorrencias"]
+        for group in groups
+    )

@@ -21,6 +21,7 @@ def deterministic_settings(monkeypatch):
         "risk_radius_meters": 50,
         "risk_window_days": 365,
         "occurrence_date_column": None,
+        "occurrence_group_date_column": None,
         "dataset_source": "Base de ocorrências importada pelo administrador",
         "dataset_updated_at": None,
         "route_alternates": 2,

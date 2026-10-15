@@ -11,6 +11,9 @@ from app.services.valhala import ValhallaService
 @pytest.mark.asyncio
 async def test_risk_converts_database_numbers_and_preserves_missing_density():
     row = {
+        "ocorrencias_por_mes": [],
+        "data_agrupamento_configurada": False,
+        "riscos_por_crime": [],
         "calculated_route_id": 42,
         "quantidade_ocorrencias": 3,
         "pontuacao_original": Decimal(9),
@@ -26,6 +29,9 @@ async def test_risk_converts_database_numbers_and_preserves_missing_density():
     risk = await RiskService.calculate(session, 42)
 
     assert risk == {
+        "ocorrencias_por_mes": [],
+        "data_agrupamento_configurada": False,
+        "riscos_por_crime": [],
         "calculated_route_id": 42,
         "quantidade_ocorrencias": 3,
         "pontuacao_original": 9,

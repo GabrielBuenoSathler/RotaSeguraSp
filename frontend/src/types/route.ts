@@ -16,7 +16,26 @@ export interface RouteResult {
   message?: string;
 }
 
+export interface CrimeRiskResult {
+  crime: string;
+  quantidade_ocorrencias: number;
+  pontuacao_original: number;
+  pontuacao_ajustada: number;
+  pontos_originais_por_km: number | null;
+  pontos_ajustados_por_km: number | null;
+}
+
+export interface MonthlyOccurrenceResult {
+  mes: string | null;
+  quantidade_ocorrencias: number;
+  pontuacao_ajustada: number;
+  crimes: Pick<CrimeRiskResult, "crime" | "quantidade_ocorrencias" | "pontuacao_ajustada">[];
+}
+
 export interface RiskResult {
+  ocorrencias_por_mes: MonthlyOccurrenceResult[];
+  data_agrupamento_configurada: boolean;
+  riscos_por_crime: CrimeRiskResult[];
   calculated_route_id: number;
   quantidade_ocorrencias: number;
   pontuacao_original: number;
