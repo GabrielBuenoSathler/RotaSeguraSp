@@ -32,7 +32,16 @@ export interface MonthlyOccurrenceResult {
   crimes: Pick<CrimeRiskResult, "crime" | "quantidade_ocorrencias" | "pontuacao_ajustada">[];
 }
 
+export interface HeatCell {
+  lat: number;
+  lon: number;
+  mes: string | null;
+  grupo: "pessoa" | "patrimonio" | "outros";
+  quantidade: number;
+}
+
 export interface RiskResult {
+  mapa_calor?: HeatCell[];
   ocorrencias_por_mes: MonthlyOccurrenceResult[];
   data_agrupamento_configurada: boolean;
   riscos_por_crime: CrimeRiskResult[];

@@ -45,6 +45,8 @@ class RiskService:
                 SELECT
                     COALESCE(NULLIF(LOWER(BTRIM(o.rubrica)), ''), 'Não informado') AS crime,
                     __MONTH_EXPRESSION__ AS mes,
+                    ST_SnapToGrid(COALESCE(o.geog, o.geom::geography)::geometry,
+                                  0.001) AS celula,
                     ST_Distance(
                             COALESCE(o.geog, o.geom::geography),
                             r.geography
@@ -114,6 +116,21 @@ class RiskService:
                 END AS pontos_ajustados
                 FROM ocorrencias_proximas
             ),
+            calor AS (
+                SELECT ST_Y(celula) AS lat, ST_X(celula) AS lon, mes,
+                    CASE
+                        WHEN TRANSLATE(crime, 'áàâãéêíóôõúüç', 'aaaaeeiooouuc')
+                            ~ '(lesao corporal|latrocin|morte|homicid|feminicid|estupro)'
+                            THEN 'pessoa'
+                        WHEN TRANSLATE(crime, 'áàâãéêíóôõúüç', 'aaaaeeiooouuc')
+                            ~ '(assalto|roubo|arrombamento)'
+                            THEN 'patrimonio'
+                        ELSE 'outros'
+                    END AS grupo,
+                    COUNT(*) AS quantidade
+                FROM ocorrencias_ponderadas
+                GROUP BY celula, mes, grupo
+            ),
             pontuacao AS (
                 SELECT COUNT(*) AS quantidade_ocorrencias,
                        COALESCE(SUM(peso), 0) AS pontuacao_original,
@@ -159,6 +176,12 @@ class RiskService:
                     ) ORDER BY m.mes DESC NULLS LAST)
                     FROM pontuacao_por_mes m
                 ), '[]'::jsonb) AS ocorrencias_por_mes,
+                COALESCE((
+                    SELECT jsonb_agg(jsonb_build_object(
+                        'lat', lat, 'lon', lon, 'mes', mes,
+                        'grupo', grupo, 'quantidade', quantidade
+                    ) ORDER BY mes, grupo, lat, lon) FROM calor
+                ), '[]'::jsonb) AS mapa_calor,
                 p.quantidade_ocorrencias,
                 p.pontuacao_original,
                 p.pontuacao_ajustada,
@@ -219,6 +242,7 @@ class RiskService:
 
         return {
             "calculated_route_id": row["calculated_route_id"],
+            "mapa_calor": row.get("mapa_calor", []),
             "riscos_por_crime": row["riscos_por_crime"],
             "ocorrencias_por_mes": row["ocorrencias_por_mes"],
             "data_agrupamento_configurada": bool(group_column),

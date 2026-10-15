@@ -60,7 +60,16 @@ class MonthlyOccurrenceResult(BaseModel):
     crimes: list[MonthlyCrimeResult]
 
 
+class HeatCell(BaseModel):
+    lat: float = Field(ge=-90, le=90)
+    lon: float = Field(ge=-180, le=180)
+    mes: date | None
+    grupo: Literal["pessoa", "patrimonio", "outros"]
+    quantidade: int = Field(gt=0)
+
+
 class RiskResult(BaseModel):
+    mapa_calor: list[HeatCell] = Field(default_factory=list)
     ocorrencias_por_mes: list[MonthlyOccurrenceResult] = Field(default_factory=list)
     data_agrupamento_configurada: bool = False
     riscos_por_crime: list[CrimeRiskResult] = Field(default_factory=list)

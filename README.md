@@ -235,13 +235,13 @@ O Compose antigo exige `BACKEND_ENV_FILE` com somente configurações da aplica�
 externo. Migrações nesse banco devem ser aplicadas separadamente com credenciais
 administrativas. O fluxo automatizado de migração/provisionamento pertence a `deploy/`.
 
-A análise retorna `riscos_por_crime`, agrupada pela rubrica da base (sem distinguir maiúsculas ou espaços nas extremidades). Cada tipo inclui quantidade de ocorrências, pontuações original e ajustada e pontos por quilômetro, com os mesmos pesos, raio e período do total. A lista é ordenada pela pontuação ajustada decrescente e aparece para o trajeto selecionado, incluindo alternativas. Sem ocorrências, a lista fica vazia; com distância zero, pontos por quilômetro são nulos. Não se trata de probabilidade de vitimização.
+A análise retorna `riscos_por_crime`, agrupada pela rubrica da base (sem distinguir maiúsculas ou espaços nas extremidades). Cada tipo inclui quantidade de ocorrências, pontuações original e ajustada e pontos por quilômetro, com os mesmos pesos, raio e período do total. O detalhamento permanece na API; a interface mostra os registros em um mapa de calor para o trajeto selecionado, incluindo alternativas. Sem ocorrências, a lista fica vazia; com distância zero, pontos por quilômetro são nulos. Não se trata de probabilidade de vitimização.
 
 ### Ocorrências por mês
 
 Configure `OCCURRENCE_GROUP_DATE_COLUMN=data_ocorrencia_bo` para categorizar os registros pela data em que ocorreram, independentemente da data de registro do boletim. A coluna deve ser `date` ou `timestamp`. A resposta de cada rota inclui `ocorrencias_por_mes`, com totais, pontuação de exposição e crimes de cada mês. Datas ausentes ficam em “Data não informada”; os totais são preservados.
 
-Na interface, use “Data das ocorrências” no painel de crimes para consultar um mês. Esse seletor altera apenas a lista detalhada da rota selecionada; os cartões continuam comparando todo o período analisado. O agrupamento não ativa a janela de `RISK_WINDOW_DAYS`: esse filtro continua dependendo de `OCCURRENCE_DATE_COLUMN`.
+Na interface, use o filtro de mês do mapa de calor ou “Data das ocorrências” no painel de crimes. Esses seletores alteram o mapa da rota selecionada; os cartões continuam comparando todo o período analisado. O agrupamento não ativa a janela de `RISK_WINDOW_DAYS`: esse filtro continua dependendo de `OCCURRENCE_DATE_COLUMN`.
 
 
 ## Ingestão automática por link da SSP
@@ -316,3 +316,35 @@ comparação contra duplicatas e transação do importador. Registros do períod
 anterior ao corte, inclusive novas correções nesse período, não são incorporados.
 O destino é exclusivamente `rotasegura_prod`; o banco original `Criminalidade`
 não é alterado por esse comando. Datas nulas não participam do corte.
+
+### Mapa de calor por grupo de crimes
+
+O mapa apresenta as ocorrências do corredor da rota selecionada em três camadas:
+violência contra a pessoa (lesão corporal, latrocínio, mortes, homicídio, feminicídio
+e estupro); assaltos, roubos e arrombamentos; e outros crimes (incluindo furtos).
+A classificação usa a rubrica, com prioridade para violência contra a pessoa.
+As coordenadas são agregadas em células de 0,001 grau (aproximadamente 100 metros),
+por grupo e mês. A intensidade representa concentração de registros, não pontuação
+ponderada ou probabilidade de vitimização. As camadas podem ser ligadas ou desligadas;
+o filtro mensal altera o mapa, mantendo a comparação das rotas no período completo.
+Recalcule as rotas depois de atualizar a API para carregar as células.
+
+### Recomendação e alternativas no frontend
+
+A busca mostra inicialmente somente o trajeto selecionado. O botão **Ver
+alternativas de trajeto** revela as demais rotas nos cartões e no mapa. Os meios
+expostos na interface são carro, bicicleta, a pé e motocicleta.
+
+O índice experimental de equilíbrio entre exposição e tempo usa:
+
+`100 × sqrt(((1 + menor_exposição) / (1 + exposição_da_rota)) × (menor_tempo / tempo_da_rota))`
+
+Tempo e exposição ajustada têm pesos iguais. Maior é melhor entre os trajetos da
+mesma busca; o índice não é comparável entre buscas e não representa probabilidade
+de vitimização. O acréscimo de 1 permite comparar rotas sem registros sem dividir
+por zero. Análises inválidas e tempos ausentes ou não positivos não recebem índice.
+Sem índice válido, a recomendação usa a menor exposição disponível. Não há dados
+de fluxo de viajantes, blitz ou presença policial nessa comparação.
+
+Teste da recomendação (Node.js 22.6+):
+`node --experimental-strip-types --test frontend/tests/routeRecommendation.test.mjs`.

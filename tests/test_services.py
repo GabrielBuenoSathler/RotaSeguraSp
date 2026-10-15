@@ -10,7 +10,11 @@ from app.services.valhala import ValhallaService
 
 @pytest.mark.asyncio
 async def test_risk_converts_database_numbers_and_preserves_missing_density():
+    cells = [
+        {"lat": -23.55, "lon": -46.63, "mes": None, "grupo": "pessoa", "quantidade": 3}
+    ]
     row = {
+        "mapa_calor": cells,
         "ocorrencias_por_mes": [],
         "data_agrupamento_configurada": False,
         "riscos_por_crime": [],
@@ -29,6 +33,7 @@ async def test_risk_converts_database_numbers_and_preserves_missing_density():
     risk = await RiskService.calculate(session, 42)
 
     assert risk == {
+        "mapa_calor": cells,
         "ocorrencias_por_mes": [],
         "data_agrupamento_configurada": False,
         "riscos_por_crime": [],

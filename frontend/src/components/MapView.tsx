@@ -11,9 +11,13 @@ import {
   useMapEvents,
 } from "react-leaflet";
 
-import type { Coordinates, RouteOption } from "../types/route";
+import CrimeHeatmap from "./CrimeHeatmap";
+import type { HeatCell, Coordinates, RouteOption } from "../types/route";
 
 interface MapViewProps {
+  heatCells: HeatCell[];
+  heatGroups: string[];
+  heatMonth: string;
   origin: Coordinates | null;
   destination: Coordinates | null;
   geometry: [number, number][] | null;
@@ -100,7 +104,7 @@ export default function MapView({
   origin,
   destination,
   geometry,
-  onSelectPoint, options, selectedId, recommendedId, editing, onChooseRoute,
+  onSelectPoint, options, selectedId, recommendedId, editing, onChooseRoute, heatCells, heatGroups, heatMonth,
 }: MapViewProps) {
   return (
     <MapContainer
@@ -113,6 +117,8 @@ export default function MapView({
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
+
+      <CrimeHeatmap cells={heatCells} groups={heatGroups} month={heatMonth} />
 
       {editing && <MapClickHandler onSelectPoint={onSelectPoint} />}
 
@@ -130,7 +136,7 @@ export default function MapView({
           radius={16}
           pathOptions={{
             color: "#ffffff",
-            fillColor: "#002FA7",
+            fillColor: "#2854cf",
             fillOpacity: 1,
             weight: 3,
           }}
@@ -146,7 +152,7 @@ export default function MapView({
           radius={16}
           pathOptions={{
             color: "#ffffff",
-            fillColor: "#002FA7",
+            fillColor: "#2854cf",
             fillOpacity: 1,
             weight: 3,
           }}
@@ -168,7 +174,7 @@ export default function MapView({
         return <Fragment key={option.route.calculated_route_id}><Polyline positions={positions} interactive={false}
           pathOptions={{ color: "#ffffff", weight: recommended ? 11 : 9, opacity: 1 }} />
           <Polyline positions={positions} bubblingMouseEvents={false} className={recommended ? "recommended-route" : "alternative-route"}
-            pathOptions={{ color: recommended ? "#002FA7" : selected ? "#424957" : "#8c9ebc", weight: recommended ? 7 : 5, opacity: 1, bubblingMouseEvents: false, className: recommended ? "recommended-route" : "alternative-route" }}
+            pathOptions={{ color: recommended ? "#2854cf" : selected ? "#424957" : "#8c9ebc", weight: recommended ? 7 : 5, opacity: 1, bubblingMouseEvents: false, className: recommended ? "recommended-route" : "alternative-route" }}
             eventHandlers={{ click: () => onChooseRoute(option) }}>
           </Polyline>
           <CircleMarker center={labelPosition(positions, 0.3 + index * 0.2)} radius={0} interactive={false}>

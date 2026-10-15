@@ -232,3 +232,33 @@ async def test_month_groups_preserve_undated_events_and_totals(
         == group["quantidade_ocorrencias"]
         for group in groups
     )
+
+
+async def test_heatmap_groups_counts_months_and_route_scope(
+    spatial_session, monkeypatch
+):
+    monkeypatch.setattr(settings, "occurrence_group_date_column", "ocorrido_em")
+    for crime in (
+        "Lesão corporal",
+        "Latrocínio",
+        "morte suspeita",
+        "Estupro",
+        "roubo",
+        "assalto",
+        "arrombamento",
+        "furto",
+        "tráfico",
+    ):
+        await occurrence(spatial_session, 5, crime, fallback=True)
+    await occurrence(spatial_session, 100, "homicídio")
+    risk = await RiskService.calculate(spatial_session, 1)
+    cells = risk["mapa_calor"]
+    assert {cell["grupo"]: cell["quantidade"] for cell in cells} == {
+        "pessoa": 4,
+        "patrimonio": 3,
+        "outros": 2,
+    }
+    assert sum(cell["quantidade"] for cell in cells) == risk["quantidade_ocorrencias"]
+    assert all(cell["mes"] is not None for cell in cells)
+    assert all(abs(cell["lon"] - 0.005) < 0.001 for cell in cells)
+    assert (await RiskService.calculate(spatial_session, 2))["mapa_calor"] == []

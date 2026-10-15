@@ -1,15 +1,26 @@
 import { useEffect, useRef, useState } from "react";
 
 import MapView from "./components/MapView";
+import { crimeGroups } from "./utils/crimeGroups";
 import PointSearch from "./components/PointSearch";
 import { api } from "./services/api";
-import { recommendedRoute } from "./utils/routeRecommendation";
+import { recommendedRoute, routeBalance } from "./utils/routeRecommendation";
 
 import type {
   CalculateResponse, Coordinates, RiskData, RouteOption, RouteResult,
 } from "./types/route";
 
 import "./App.css";
+
+function InterfaceIcon({ name }: { name: "route" | "pin" | "info" | "shield" }) {
+  const paths = {
+    route: "M5 6a2 2 0 1 0 0 .01M19 18a2 2 0 1 0 0 .01M7 6h9a4 4 0 0 1 0 8H8a4 4 0 0 0 0 8h9",
+    pin: "M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0ZM15 10a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z",
+    info: "M12 11v6M12 7v.01M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0Z",
+    shield: "m12 2 8 4v6c0 5-4 8-8 10-4-2-8-5-8-10V6l8-4Zm-4 10 3 3 5-6",
+  };
+  return <svg className="interface-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[name]} /></svg>;
+}
 
 export default function App() {
   const [origin, setOrigin] = useState<Coordinates | null>(null);
@@ -21,10 +32,13 @@ export default function App() {
 
   const crimePanel = useRef<HTMLDetailsElement>(null);
   const [activePanel, setActivePanel] = useState<"planner" | "map" | "routes" | "crimes">("planner");
+  const [detailPanel, setDetailPanel] = useState<"routes" | "crimes">("routes");
+  const [heatGroups, setHeatGroups] = useState<string[]>(["pessoa", "patrimonio", "outros"]);
   const [selectedMonth, setSelectedMonth] = useState("todos");
   const [originName, setOriginName] = useState("");
   const [destinationName, setDestinationName] = useState("");
 
+  const [showAlternatives, setShowAlternatives] = useState(false);
   const [transportMode, setTransportMode] = useState("auto");
 
   const [loading, setLoading] = useState(false);
@@ -69,6 +83,7 @@ export default function App() {
     setRisk(null);
     setGeometry(null);
     setOptions([]);
+    setShowAlternatives(false);
   }
 
   function chooseRoute(option: RouteOption) {
@@ -196,6 +211,7 @@ export default function App() {
       setOptions(routeOptions);
       chooseRoute(recommendedRoute(routeOptions) ?? routeOptions[0]);
       setSelecting(null);
+      setDetailPanel("routes");
       setActivePanel("map");
     } catch (err: unknown) {
       console.error("Erro ao calcular rota:", err);
@@ -284,7 +300,7 @@ export default function App() {
   const analysis = risk?.status.success ? risk.result : null;
   const monthGroups = analysis?.ocorrencias_por_mes ?? [];
   const selectedGroup = monthGroups.find(group => (group.mes ?? "sem-data") === selectedMonth);
-  const visibleCrimes = selectedMonth === "todos" ? analysis?.riscos_por_crime : selectedGroup?.crimes;
+  const heatCells = analysis?.mapa_calor;
   const visibleCount = selectedMonth === "todos" ? analysis?.quantidade_ocorrencias : selectedGroup?.quantidade_ocorrencias;
   const monthLabel = (month: string | null) => month ? new Date(`${month}T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" }) : "Data não informada";
   const number = (value: number) => value.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
@@ -293,18 +309,26 @@ export default function App() {
   return (
     <main className="app">
       <header className="header">
-        <div><h1>RotaSegura<span>SP</span></h1><p>Planeje seu trajeto. Compare as ocorrências próximas.</p></div>
-        <span className="status">Versão experimental</span>
+        <div className="brand">
+          <svg className="brand-icon" viewBox="0 0 32 36" fill="none" aria-hidden="true"><path d="M16 2 28 7v10c0 8-6 13-12 16C10 30 4 25 4 17V7L16 2Z" stroke="currentColor" strokeWidth="2.4" /><path d="m10 17 4 4 8-9" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          <h1>RotaSegura<span>SP</span></h1>
+        </div>
+        <div className="header-meta"><span>São Paulo, Brasil</span><span className="status"><InterfaceIcon name="info" />Versão experimental</span></div>
       </header>
+      <div className={`workspace ${result ? "has-results" : ""}`} data-panel={activePanel} data-details={detailPanel}>
       <nav className="panel-navigation" aria-label="Painéis do trajeto">
-        {([['planner', 'Planejar'], ['map', 'Mapa'], ['routes', 'Rotas'], ['crimes', 'Crimes']] as const).map(([panel, label]) =>
-          <button key={panel} aria-pressed={activePanel === panel} disabled={(panel === "routes" || panel === "crimes") && !result} onClick={() => setActivePanel(panel)}>{label}</button>
+        {([['planner', 'Planejar'], ['map', 'Mapa'], ['routes', 'Rotas'], ['crimes', 'Análise']] as const).map(([panel, label]) =>
+          <button key={panel} data-panel={panel} aria-pressed={activePanel === panel} disabled={(panel === "routes" || panel === "crimes") && !result} onClick={() => setActivePanel(panel)}>{label}</button>
         )}
       </nav>
-      <div className={`workspace ${result ? "has-results" : ""}`} data-panel={activePanel}>
+      {result && <nav className="result-navigation" aria-label="Resultados do trajeto">
+        {([['routes', 'Rotas'], ['crimes', 'Análise']] as const).map(([panel, label]) =>
+          <button key={panel} aria-pressed={detailPanel === panel} onClick={() => setDetailPanel(panel)}>{label}</button>
+        )}
+      </nav>}
         <aside className="planner" aria-labelledby="planner-title">
-          <h2 id="planner-title">Seu trajeto</h2>
-          <p className="hint">Busque um endereço ou selecione os pontos no mapa.</p>
+          <h2 id="planner-title"><InterfaceIcon name="route" />Seu trajeto</h2>
+          <p className="hint">De onde você sai e aonde quer chegar?</p>
           <div className="point-list">
             {(["origin", "destination"] as const).map((target, index) => (
               <button key={target} type="button" className="selection-item" aria-pressed={selecting === target}
@@ -328,53 +352,68 @@ export default function App() {
           </select>
           <button className="primary-button" disabled={!origin || !destination || busy} onClick={calculateRoute}>{loading ? "Calculando trajeto…" : result ? "Recalcular rota" : "Calcular rota"}</button>
           <button className="text-button clear-button" disabled={busy || (!origin && !destination)} onClick={clearSelection}>Limpar seleção</button>
-          <p className="selection-help" role="status" aria-live="polite">{loading ? "Calculando o trajeto e analisando as ocorrências." : result ? "Selecione um trajeto para comparar seus detalhes." : !origin ? "Defina a origem para começar." : !destination ? "Agora defina o destino." : "Origem e destino definidos. Você já pode calcular."}</p>
+          <p className="selection-help" role="status" aria-live="polite">{loading ? "Calculando o trajeto e analisando as ocorrências." : result ? "Sua rota está pronta. Veja o trajeto no mapa." : !origin ? "Defina a origem para começar." : !destination ? "Agora defina o destino." : "Origem e destino definidos. Você já pode calcular."}</p>
           {error && <div className="error-message" role="alert">{error}</div>}
         </aside>
 
         <section className={`map-section ${selecting && !busy ? "is-editing" : ""}`} aria-label="Mapa dos trajetos">
-          <div className="map-toolbar"><strong>{result ? routeName(selectedIndex) : "São Paulo, SP"}</strong><span>{busy ? "Aguarde…" : selecting ? `Clique para definir ${selecting === "origin" ? "a origem" : "o destino"}` : "Selecione uma alternativa no mapa"}</span></div>
-          <MapView origin={origin} destination={destination} geometry={geometry} options={options} recommendedId={recommendedId} selectedId={result?.calculated_route_id}
+          <div className="map-toolbar"><strong><InterfaceIcon name="pin" />{result ? routeName(selectedIndex) : "São Paulo, SP"}</strong><span>{busy ? "Aguarde…" : selecting ? `Clique para definir ${selecting === "origin" ? "a origem" : "o destino"}` : "Mapa de calor do trajeto selecionado"}</span></div>
+          <MapView heatCells={heatCells ?? []} heatGroups={heatGroups} heatMonth={selectedMonth} origin={origin} destination={destination} geometry={geometry} options={showAlternatives ? options : options.filter(option => option.route.calculated_route_id === result?.calculated_route_id)} recommendedId={recommendedId} selectedId={result?.calculated_route_id}
             editing={!!selecting && !busy} onSelectPoint={selectPoint} onChooseRoute={chooseRoute} />
-          <div className="map-legend"><span><b>A</b> Origem</span><span><b>B</b> Destino</span><span><i /> {recommendation ? "Recomendada" : "Trajeto"}</span><span><i className="alternative-line" /> Alternativas</span></div>
+          {analysis && <details className="heat-controls">
+            <summary>Camadas do mapa de calor</summary>
+            <div className="heat-controls-body">
+            <div className="heat-groups">{crimeGroups.map(group => <label key={group.id} title={group.detail}>
+              <input type="checkbox" checked={heatGroups.includes(group.id)} onChange={event => setHeatGroups(current => event.target.checked ? [...current, group.id] : current.filter(id => id !== group.id))} />
+              <i style={{ background: group.color }} /><span>{group.label}</span>
+            </label>)}</div>
+            {analysis.data_agrupamento_configurada && <select aria-label="Mês do mapa de calor" value={selectedMonth} onChange={event => setSelectedMonth(event.target.value)}>
+              <option value="todos">Todo o período</option>
+              {monthGroups.map(group => <option key={group.mes ?? "sem-data"} value={group.mes ?? "sem-data"}>{monthLabel(group.mes)}</option>)}
+            </select>}
+            <small role="status">{!heatCells ? "Mapa de calor indisponível. Recalcule a rota após atualizar a API." : !heatGroups.length ? "Selecione um grupo para visualizar." : `${number(heatCells.filter(cell => heatGroups.includes(cell.grupo) && (selectedMonth === "todos" || (cell.mes ?? "sem-data") === selectedMonth)).reduce((sum, cell) => sum + cell.quantidade, 0))} registros · maior intensidade = maior concentração`}</small>
+            </div>
+          </details>}
+          <div className="map-legend"><span><b>A</b> Origem</span><span><b>B</b> Destino</span><span><i /> {recommendation ? "Recomendada" : "Trajeto"}</span>{showAlternatives && <span><i className="alternative-line" /> Alternativas</span>}</div>
         </section>
 
         {options.length > 0 && <section className="comparison" aria-labelledby="comparison-title">
-          <div className="section-heading"><h2 id="comparison-title">Compare os trajetos</h2><span>{options.length} {options.length === 1 ? "trajeto encontrado" : "trajetos encontrados"}</span></div>
-          <p className="hint">A recomendada tem a menor pontuação de exposição entre as rotas com análise disponível. Considere também tempo e distância.</p>
-          <div className="route-options">{options.map((option, index) => {
+          <div className="section-heading"><h2 id="comparison-title">Seu caminho</h2><span>{options.length} {options.length === 1 ? "trajeto encontrado" : "trajetos encontrados"}</span></div>
+          <p className="hint">A recomendação equilibra tempo e exposição aos registros. Quanto maior o índice, melhor esse equilíbrio entre os trajetos analisados.</p>
+          {options.length > 1 && <button className="secondary-button alternatives-toggle" aria-expanded={showAlternatives} onClick={() => setShowAlternatives(value => !value)}>{showAlternatives ? "Ocultar alternativas" : "Ver alternativas de trajeto"}</button>}
+          {showAlternatives && <p className="hint">Uma rota mais rápida pode ter maior exposição aos registros. Compare antes de escolher.</p>}
+          <div className={`route-options ${showAlternatives ? "" : "single-route"}`}>{options.filter(option => showAlternatives || option.route.calculated_route_id === result?.calculated_route_id).map(option => {
+            const index = options.indexOf(option);
+            const balance = routeBalance(option, options);
             const data = option.risk.status.success ? option.risk.result : null;
-            const crimes = data?.riscos_por_crime ?? [];
             return <article className="route-option" key={option.route.calculated_route_id} data-recommended={recommendedId === option.route.calculated_route_id} data-selected={result?.calculated_route_id === option.route.calculated_route_id}>
               <button className="route-select" aria-pressed={result?.calculated_route_id === option.route.calculated_route_id} onClick={() => chooseRoute(option)}>
                 <span className="route-option-heading"><strong>{routeName(index)}{recommendedId === option.route.calculated_route_id && <small className="recommended-badge">Recomendada</small>}</strong><span>{result?.calculated_route_id === option.route.calculated_route_id ? "Selecionada" : "Selecionar"}</span></span>
                 <span className="route-metrics"><span><small>Tempo</small><b>{formatDuration(option.route.duration_seconds)}</b></span><span><small>Distância</small><b>{option.route.distance_km === undefined ? "—" : `${number(option.route.distance_km)} km`}</b></span><span><small>Ocorrências</small><b>{data ? number(data.quantidade_ocorrencias) : "—"}</b></span></span>
-                <span className="exposure-score">{data ? `${number(data.pontuacao_ajustada)} pontos de exposição` : "Análise indisponível"}</span>
+                <span className="exposure-score"><b>{balance === undefined ? "—" : `${number(Math.round(balance))}/100`}</b><small>Equilíbrio entre exposição e tempo · maior é melhor</small></span>
+                {data && <span className="exposure-detail">{number(data.pontuacao_ajustada)} pontos de exposição</span>}
               </button>
-              <div className="crime-preview">{crimes.length ? <ul>{crimes.slice(0, 3).map(crime => <li key={crime.crime}><span>{crime.crime}</span><strong>{number(crime.quantidade_ocorrencias)}</strong></li>)}</ul> : <p className="hint">{!data ? option.risk.status.message : data.quantidade_ocorrencias === 0 ? "Nenhuma ocorrência registrada próxima ao trajeto." : "Detalhamento dos crimes indisponível."}</p>}
-                {crimes.length > 3 && <button className="text-button" onClick={() => { chooseRoute(option); requestAnimationFrame(() => { if (crimePanel.current) { crimePanel.current.open = true; setActivePanel("crimes"); crimePanel.current.focus(); } }); }}>Ver todos os {crimes.length} tipos de crime</button>}
-              </div>
+              {!data && <p className="route-unavailable" role="status">{option.risk.status.message}</p>}
             </article>;
           })}</div>
         </section>}
 
         {risk && <details ref={crimePanel} tabIndex={-1} className="crime-panel" id="crime-details" key={result?.calculated_route_id} open>
-          <summary>Crimes próximos · {routeName(selectedIndex)}</summary>
+          <summary>Sobre a análise</summary>
           <div className="panel-body">{analysis ? <>
-            <p className="hint">Registros em até {analysis.raio_analise_metros} metros deste trajeto, ordenados pela pontuação de exposição.</p>
+            <p className="hint">Registros em até {analysis.raio_analise_metros} metros deste trajeto, agrupados no mapa de calor.</p>
             {analysis.data_agrupamento_configurada ? <div className="month-filter">
               <label htmlFor="occurrence-month" className="field-label">Data das ocorrências</label>
               <select id="occurrence-month" value={selectedMonth} onChange={event => setSelectedMonth(event.target.value)}>
                 <option value="todos">Todo o período ({number(analysis.quantidade_ocorrencias)})</option>
                 {monthGroups.map(group => <option key={group.mes ?? "sem-data"} value={group.mes ?? "sem-data"}>{monthLabel(group.mes)} ({number(group.quantidade_ocorrencias)})</option>)}
               </select>
-              <p className="hint" role="status">{number(visibleCount ?? 0)} ocorrências · {selectedMonth === "todos" ? "todo o período" : monthLabel(selectedGroup?.mes ?? null)}. O filtro altera esta lista; a comparação das rotas considera todo o período analisado.</p>
+              <p className="hint" role="status">{number(visibleCount ?? 0)} ocorrências · {selectedMonth === "todos" ? "todo o período" : monthLabel(selectedGroup?.mes ?? null)}. O filtro altera o mapa de calor; a comparação das rotas considera todo o período analisado.</p>
             </div> : <p className="hint">A classificação por data ainda não está disponível nesta base.</p>}
-            {visibleCrimes?.length ? <ul className="crime-risk-list">{visibleCrimes.map(crime => <li key={crime.crime}>
-              <div><strong>{crime.crime}</strong><span>{number(crime.quantidade_ocorrencias)} ocorrências próximas</span></div>
-              <span className="crime-score">{number(crime.pontuacao_ajustada)}<small>pontos de exposição</small></span>
-            </li>)}</ul> : <p>{analysis.quantidade_ocorrencias === 0 ? "Nenhuma ocorrência registrada no corredor analisado." : "O detalhamento por tipo de crime não está disponível."}</p>}
+            <p className="hint">Veja a concentração dos registros no mapa. Ative os grupos desejados na legenda.</p>
             <details className="methodology"><summary>Como a análise funciona</summary>
+              <p>Índice de equilíbrio = 100 × raiz de [(1 + menor exposição) / (1 + exposição da rota) × menor tempo / tempo da rota]. Tempo e exposição têm o mesmo peso. O índice é relativo aos trajetos calculados e não deve ser comparado entre buscas. Sem tempo ou análise válidos, fica indisponível.</p>
+              <p>Não há dados de fluxo de pessoas ou veículos nesta base. Portanto, não é possível estimar ocorrências por viajante nem a chance de sofrer um crime. O índice não mede segurança absoluta; ausência de registros não garante segurança.</p>
               <p>A pontuação considera a gravidade e a proximidade das ocorrências. Ela é um indicador experimental, não uma probabilidade de sofrer um crime.</p>
               <dl><div><dt>Pontuação original</dt><dd>{number(analysis.pontuacao_original)}</dd></div><div><dt>Pontuação ajustada</dt><dd>{number(analysis.pontuacao_ajustada)}</dd></div><div><dt>Pontos ajustados por km</dt><dd>{analysis.pontos_ajustados_por_km === null ? "Indisponível" : number(analysis.pontos_ajustados_por_km)}</dd></div></dl>
               <p>Fonte: {analysis.fonte}. Atualização: {analysis.atualizado_em ? new Date(`${analysis.atualizado_em}T12:00:00`).toLocaleDateString("pt-BR") : "não informada"}.</p>
