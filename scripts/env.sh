@@ -36,6 +36,10 @@ if [[ ! -f "$ENV_FILE" ]]; then
   echo "Execute scripts/env.sh $ENVIRONMENT init primeiro." >&2
   exit 1
 fi
+if [[ -f "$ROOT/.releases/$ENVIRONMENT.json" ]] && [[ "$ACTION" == up || "$ACTION" == migrate || "$ACTION" == build ]]; then
+  echo 'Este ambiente usa imagens versionadas. Use scripts/release.py para deploy e migrações.' >&2
+  exit 1
+fi
 COMPOSE=(docker compose --project-name "rotasegura-$ENVIRONMENT" --env-file "$ENV_FILE" -f "$ROOT/deploy/compose.yaml")
 if [[ "$ENVIRONMENT" == dev ]]; then
   COMPOSE+=(-f "$ROOT/deploy/compose.dev.yaml")

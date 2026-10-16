@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     valhalla_url: str = "http://valhalla:8002"
     valhalla_timeout_seconds: float = Field(default=30, gt=0)
     route_alternates: int = Field(default=2, ge=0, le=2)
+    feature_route_alternatives: bool = True
+    feature_geocoding: bool = True
     cors_origins: list[str] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",

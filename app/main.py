@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.database import engine
 from app.core.security import ResourceLimitsMiddleware
+from app.routers.features import router as features_router
 from app.routers.places import router as places_router
 from app.routers.router_requests_v import router as route_requests_router
 
@@ -20,6 +21,7 @@ app = FastAPI(title="RotaSegura", lifespan=lifespan)
 app.add_middleware(ResourceLimitsMiddleware)
 app.include_router(route_requests_router)
 app.include_router(places_router)
+app.include_router(features_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,

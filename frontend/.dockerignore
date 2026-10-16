@@ -1,4 +1,5 @@
 node_modules
+.ci-metrics
 dist
 .git
 .env

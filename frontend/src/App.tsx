@@ -4,6 +4,7 @@ import MapView from "./components/MapView";
 import { crimeGroups } from "./utils/crimeGroups";
 import PointSearch from "./components/PointSearch";
 import { api } from "./services/api";
+import { disabledFeatures, parseFeatures } from "./services/features";
 import { recommendedRoute, routeBalance } from "./utils/routeRecommendation";
 
 import type {
@@ -23,6 +24,14 @@ function InterfaceIcon({ name }: { name: "route" | "pin" | "info" | "shield" }) 
 }
 
 export default function App() {
+  const [features, setFeatures] = useState(disabledFeatures);
+  useEffect(() => {
+    const controller = new AbortController();
+    api.get("/features", { signal: controller.signal, timeout: 10000 })
+      .then(({ data }) => setFeatures(parseFeatures(data)))
+      .catch(() => { /* Map selection remains available if configuration fails. */ });
+    return () => controller.abort();
+  }, []);
   const [origin, setOrigin] = useState<Coordinates | null>(null);
   const [destination, setDestination] =
     useState<Coordinates | null>(null);
@@ -53,7 +62,7 @@ export default function App() {
   const [geometry, setGeometry] = useState<[number, number][] | null>(null);
 
   useEffect(() => {
-    if (!origin || originName) return;
+    if (!features.geocoding || !origin || originName) return;
     const controller = new AbortController();
     api.get<{ display_name: string } | null>("/places/reverse", {
       params: origin, signal: controller.signal, timeout: 15000,
@@ -63,10 +72,10 @@ export default function App() {
       if (!controller.signal.aborted) setOriginName("Endereço indisponível — ponto selecionado no mapa");
     });
     return () => controller.abort();
-  }, [origin, originName]);
+  }, [origin, originName, features.geocoding]);
 
   useEffect(() => {
-    if (!destination || destinationName) return;
+    if (!features.geocoding || !destination || destinationName) return;
     const controller = new AbortController();
     api.get<{ display_name: string } | null>("/places/reverse", {
       params: destination, signal: controller.signal, timeout: 15000,
@@ -76,7 +85,7 @@ export default function App() {
       if (!controller.signal.aborted) setDestinationName("Endereço indisponível — ponto selecionado no mapa");
     });
     return () => controller.abort();
-  }, [destination, destinationName]);
+  }, [destination, destinationName, features.geocoding]);
 
   function invalidateResult() {
     setResult(null);
@@ -340,7 +349,7 @@ export default function App() {
             ))}
           </div>
           {result ? <button className="secondary-button" disabled={busy} onClick={() => { invalidateResult(); setSelecting("origin"); setActivePanel("planner"); }}>Editar pontos</button> : <>
-            {selecting && <PointSearch key={selecting} target={selecting} disabled={busy} onSelect={selectPoint} onSearching={setSearching} />}
+            {selecting && features.geocoding && <PointSearch key={selecting} target={selecting} disabled={busy} onSelect={selectPoint} onSearching={setSearching} />}
             <div className="point-actions">
               <button className="text-button" disabled={busy} onClick={useCurrentLocation}>{locating ? "Obtendo localização…" : "Usar minha localização"}</button>
               <button className="text-button" disabled={busy || !origin || !destination} onClick={swapPoints}>Inverter pontos</button>

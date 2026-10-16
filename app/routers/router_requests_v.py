@@ -125,6 +125,9 @@ async def calculate_route(
     if request is None:
         raise HTTPException(404, "Solicitação de rota não encontrada")
     costing = request.transport_mode.value
+    alternate_count = (
+        settings.route_alternates if settings.feature_route_alternatives else 0
+    )
     try:
         data = await ValhallaService().calculate_route(
             origin_lat=request.origin_lat,
@@ -132,7 +135,7 @@ async def calculate_route(
             destination_lat=request.destination_lat,
             destination_lon=request.destination_lon,
             costing=costing,
-            alternates=settings.route_alternates,
+            alternates=alternate_count,
         )
     except httpx.TimeoutException as exc:
         raise HTTPException(
@@ -148,7 +151,7 @@ async def calculate_route(
     parsed = [main]
     alternates = data.get("alternates", [])
     if isinstance(alternates, list):
-        for alternate in alternates[: settings.route_alternates]:
+        for alternate in alternates[:alternate_count]:
             try:
                 candidate = parse_trip(alternate["trip"])
             except (KeyError, TypeError, ValueError, ValidationError):

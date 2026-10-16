@@ -1,4 +1,9 @@
 .git
+.releases
+.ci-metrics
+deploy/.env.*
+backups
+dumps
 .env
 .env.*
 .venv

@@ -87,6 +87,7 @@ Compare a pontuação total, a distância e a duração das opções. O trajeto 
 | POST | `/rota/{id}/calculate` | Calcula o trajeto, alternativas e análise de cada opção |
 | GET | `/places?q=...` | Até cinco endereços no Brasil, via Nominatim configurado |
 | GET | `/health` | Verifica se a aplicação responde; não verifica dependências |
+| GET | `/features` | Flags públicas efetivas para busca de endereços e alternativas |
 
 O endpoint de cálculo mantém `route`, `risk`, `success` e `message`, acrescentando `alternatives` como uma lista de objetos com `route` e `risk`. Cada análise contém o seu `calculated_route_id`. Respostas inválidas do Valhalla retornam 502; timeout retorna 504. Falhas da análise retornam o trajeto com `risk.status.success=false`.
 
@@ -125,6 +126,11 @@ Se o arquivo do ambiente já existir, `init` o preserva e encerra sem sobrescrev
 | prod | production | http://localhost:3000 | Acesso pelo proxy `/api` |
 
 Dev usa Vite e recarrega alterações de frontend e backend. Homolog e prod compilam o frontend e o servem pelo Nginx. Os três podem funcionar simultaneamente. As portas ficam vinculadas ao host local; configure HTTPS em um proxy reverso para publicar homolog/prod. Ajuste `BIND_HOST` quando precisar expor o frontend em outra interface. `CORS_ORIGINS=[]` funciona com o proxy de mesma origem; configure origens explícitas para clientes web que acessem diretamente a API de dev.
+
+Para uma VPS com releases versionadas, use o [procedimento de deploy e rollback](deploy/RELEASES.md).
+Ele publica imagens pelo SHA do commit e registra os digests exatos de cada versão.
+Após o primeiro deploy gerenciado, `env.sh` bloqueia `up`, `build` e `migrate`
+nesse ambiente para evitar substituir uma release por um build local.
 
 ```bash
 ./scripts/env.sh homolog migrate
@@ -177,6 +183,7 @@ poetry run ruff format --check app tests
 cd frontend
 npm run build
 npm run lint
+npm test
 ```
 
 Os testes da API usam provedores e sessão simulados. Os testes marcados `postgis` executam a consulta espacial real. Para ativá-los, defina `TEST_DATABASE_URL` com uma URL SQLAlchemy `postgresql+asyncpg://...` de um banco com PostGIS e execute:
@@ -185,7 +192,39 @@ Os testes da API usam provedores e sessão simulados. Os testes marcados `postgi
 poetry run pytest -m postgis
 ```
 
-Eles criam tabelas temporárias na própria conexão e desfazem as transações, sem alterar as tabelas existentes. Sem a variável, esses testes são pulados. O workflow de CI executa os testes com PostGIS, os checks Python e o build/lint do frontend.
+Eles criam tabelas temporárias na própria conexão e desfazem as transações, sem alterar as tabelas existentes. Sem a variável, esses testes são pulados. O workflow de CI executa os testes com PostGIS, os checks Python e os testes/build/lint do frontend.
+
+O CI executa backend e frontend em jobs independentes, reutiliza caches de npm,
+pip e do ambiente Poetry, e cancela execuções antigas da mesma referência.
+`scripts/ci_step.py` registra duração e código de saída de cada etapa de comando
+no resumo do job e nos artefatos `timings-backend` e `timings-frontend` (JSONL).
+Compare execuções com cache frio e quente; o tempo total, incluindo a preparação
+dos runners e serviços, continua disponível no GitHub Actions. `pytest --durations=10`
+mostra os testes mais lentos. O teste de ingestão real da SSP permanece opt-in,
+pois exige o banco de ingestão isolado descrito abaixo.
+
+Os testes do frontend usam o runner nativo do Node com remoção de tipos;
+use Node 22.6+ (o CI acompanha Node 22). Eles cobrem a recomendação de rotas
+e a interpretação das flags; não substituem testes de navegador do fluxo completo.
+
+## Feature flags
+
+As flags são definidas no ambiente do backend e carregadas na inicialização:
+
+| Variável | Padrão | Comportamento com `false` |
+| --- | --- | --- |
+| `FEATURE_GEOCODING` | `true` | Desativa busca e identificação de endereços, inclusive chamadas diretas à API; o mapa continua disponível. |
+| `FEATURE_ROUTE_ALTERNATIVES` | `true` | Solicita apenas a rota principal e ignora alternativas retornadas pelo provedor. |
+
+`NOMINATIM_URL` continua necessário para geocodificação; `ROUTE_ALTERNATES`
+continua definindo a quantidade máxima de alternativas. `GET /features` informa
+apenas os valores efetivos, sem URLs ou credenciais. O frontend consulta esse
+endpoint ao abrir a página e oculta a busca quando indisponível.
+
+Edite `.env` ou `deploy/.env.<ambiente>` e recrie o backend para aplicar a mudança.
+No fluxo versionado, repita `release.py ... deploy` com o mesmo SHA; isso preserva
+o alvo de rollback e dispensa reconstruir imagens. Recarregue a página para obter
+as flags atualizadas. São flags por ambiente, sem segmentação por usuário ou percentual.
 
 ## Segurança da API e credenciais do banco
 

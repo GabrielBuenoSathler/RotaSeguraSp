@@ -25,6 +25,8 @@ def deterministic_settings(monkeypatch):
         "dataset_source": "Base de ocorrências importada pelo administrador",
         "dataset_updated_at": None,
         "route_alternates": 2,
+        "feature_route_alternatives": True,
+        "feature_geocoding": True,
         "nominatim_url": None,
     }.items():
         monkeypatch.setattr(settings, key, value)

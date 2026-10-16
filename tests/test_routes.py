@@ -8,6 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.core.config import settings
 from app.core.database import get_session
 from app.main import app
 from app.models.route_request import TransportMode
@@ -198,6 +199,21 @@ def test_alternatives_use_their_own_ids_even_after_risk_failure(
     assert not data["risk"]["status"]["success"]
     assert [call.args[1] for call in providers[1].await_args_list] == [7, 8]
     assert data["route"]["geometry"]["coordinates"][0] == [-46.63, -23.55]
+
+
+def test_disabled_alternatives_are_not_requested_or_returned(
+    client, providers, monkeypatch
+):
+    monkeypatch.setattr(settings, "feature_route_alternatives", False)
+    providers[0].return_value = {
+        "trip": trip(),
+        "alternates": [{"trip": trip([(-23.55, -46.63), (-23.57, -46.64)])}],
+    }
+    response = client.post("/rota/42/calculate")
+    assert response.status_code == 200
+    assert providers[0].await_args.kwargs["alternates"] == 0
+    assert response.json()["alternatives"] == []
+    assert response.json()["route"]["calculated_route_id"] == 7
 
 
 def test_invalid_and_duplicate_alternatives_are_ignored(client, providers):

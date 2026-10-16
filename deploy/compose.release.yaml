@@ -1,0 +1,17 @@
+# Application releases use registry digests; the database stays on its own volume.
+services:
+  backend:
+    build: !reset null
+    image: ${BACKEND_IMAGE:?Use scripts/release.py}
+  migrate:
+    build: !reset null
+    image: ${BACKEND_IMAGE:?Use scripts/release.py}
+  frontend:
+    build: !reset null
+    image: ${FRONTEND_IMAGE:?Use scripts/release.py}
+    healthcheck:
+      test: [CMD-SHELL, 'wget -q -O /dev/null http://127.0.0.1/ && wget -q -O /dev/null http://127.0.0.1/api/health']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s

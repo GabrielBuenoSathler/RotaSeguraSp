@@ -4,12 +4,20 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: validation-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   backend:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     services:
       postgis:
-        image: postgis/postgis:16-3.5
+        image: postgis/postgis:17-3.5
         env:
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test
@@ -23,19 +31,42 @@ jobs:
           --health-retries 5
     env:
       TEST_DATABASE_URL: postgresql+asyncpg://test:test@localhost:5432/test
+      POETRY_VIRTUALENVS_IN_PROJECT: 'true'
+      CI_TIMINGS_FILE: ${{ github.workspace }}/.ci-metrics/backend.jsonl
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
+        id: python
         with:
           python-version: '3.13'
-      - run: pip install poetry
-      - run: poetry install --no-root --no-interaction
-      - run: poetry run ruff check app tests
-      - run: poetry run ruff format --check app tests
-      - run: poetry run pytest -q
+          cache: pip
+          cache-dependency-path: poetry.lock
+      - run: python scripts/ci_step.py 'Instalar Poetry' pip install poetry
+      - uses: actions/cache@v4
+        with:
+          path: .venv
+          key: poetry-${{ runner.os }}-${{ steps.python.outputs.python-version }}-${{ hashFiles('poetry.lock', 'pyproject.toml') }}
+      - run: python scripts/ci_step.py 'Dependências Python' poetry install --no-root --no-interaction
+      - run: python scripts/ci_step.py 'Lint Python' poetry run ruff check app tests scripts/release.py scripts/ci_step.py
+      - run: python scripts/ci_step.py 'Formato Python' poetry run ruff format --check app tests scripts/release.py scripts/ci_step.py
+      - name: Validar Compose de release
+        env:
+          BACKEND_IMAGE: ghcr.io/example/backend:validation
+          FRONTEND_IMAGE: ghcr.io/example/frontend:validation
+        run: docker compose --profile maintenance --env-file deploy/.env.prod.example -f deploy/compose.yaml -f deploy/compose.release.yaml config --quiet
+      - run: python scripts/ci_step.py 'Testes backend e PostGIS' poetry run pytest -q --durations=10
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: timings-backend
+          path: .ci-metrics/backend.jsonl
+          include-hidden-files: true
 
   frontend:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CI_TIMINGS_FILE: ${{ github.workspace }}/.ci-metrics/frontend.jsonl
     defaults:
       run:
         working-directory: frontend
@@ -46,6 +77,56 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - run: npm ci
-      - run: npm run lint
-      - run: npm run build
+      - run: python3 ../scripts/ci_step.py 'Dependências frontend' npm ci
+      - run: python3 ../scripts/ci_step.py 'Testes frontend' npm test
+      - run: python3 ../scripts/ci_step.py 'Lint frontend' npm run lint
+      - run: python3 ../scripts/ci_step.py 'Build frontend' npm run build
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: timings-frontend
+          path: .ci-metrics/frontend.jsonl
+          include-hidden-files: true
+
+  images:
+    needs: [backend, frontend]
+    if: github.event_name == 'push' && github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - service: backend
+            context: .
+            file: Dockerfile.backend
+          - service: frontend
+            context: frontend
+            file: frontend/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+      - name: Endereço da imagem
+        id: image
+        env:
+          REPOSITORY: ${{ github.repository }}
+          SERVICE: ${{ matrix.service }}
+        run: echo "name=ghcr.io/${REPOSITORY,,}/$SERVICE" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          push: true
+          tags: ${{ steps.image.outputs.name }}:sha-${{ github.sha }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}

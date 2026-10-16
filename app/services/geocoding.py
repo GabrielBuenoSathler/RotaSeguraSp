@@ -25,7 +25,7 @@ class GeocodingService:
 
     @classmethod
     async def _request(cls, endpoint: str, params: dict):
-        if not settings.nominatim_url:
+        if not settings.feature_geocoding or not settings.nominatim_url:
             raise GeocodingUnavailableError("Busca por endereço não configurada")
         url = f"{settings.nominatim_url.rstrip('/')}/{endpoint}"
         key = (url, tuple(sorted(params.items())))

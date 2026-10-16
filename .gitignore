@@ -22,6 +22,8 @@ dist/
 # Testes, cobertura e ferramentas de análise
 .pytest_cache/
 .ruff_cache/
+.ci-metrics/
+.releases/
 .mypy_cache/
 .pyright/
 .tox/
