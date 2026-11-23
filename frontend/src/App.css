@@ -23,7 +23,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
 h1, h2, p { margin-top: 0; }
 p { line-height: 1.55; }
 
-.app { position: relative; min-height: 100dvh; height: 100dvh; overflow: hidden; background: #fff; }
+.app { position: relative; display: flex; flex-direction: column; min-height: 100dvh; height: 100dvh; overflow: hidden; background: #fff; }
 .header { position: absolute; z-index: 1000; top: 0; left: 0; right: 0; display: flex; justify-content: space-between; align-items: center; gap: 24px; min-height: 64px; padding: 12px 24px; border-bottom: 1px solid rgba(32, 32, 32, .28); background: rgba(255, 255, 255, .82); backdrop-filter: blur(12px); }
 .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .brand-icon { width: 28px; height: 32px; color: var(--accent); flex-shrink: 0; }
@@ -32,13 +32,19 @@ p { line-height: 1.55; }
 .header-meta { display: flex; align-items: center; gap: 16px; color: var(--muted); font-size: 12px; }
 .status { display: inline-flex; align-items: center; gap: 6px; padding: 7px 10px; border: 1px solid var(--line); white-space: nowrap; }
 
-.workspace { position: relative; min-height: 100dvh; height: 100dvh; }
+.workspace { position: relative; flex: 1 1 auto; min-height: 0; height: auto; }
 .workspace > * { min-width: 0; }
 .panel-navigation { display: none; }
-.planner { position: absolute; z-index: 20; top: 24px; bottom: 44px; left: 24px; width: 320px; }
+.planner { position: absolute; z-index: 20; top: 24px; bottom: 0; left: 24px; width: 320px; }
 .map-section { position: absolute; z-index: 1; inset: 0; }
 .result-navigation { position: absolute; z-index: 21; top: 24px; right: 24px; width: 340px; }
-.comparison, .crime-panel { position: absolute; z-index: 20; top: 72px; right: 24px; bottom: 44px; width: 340px; }
+.comparison, .crime-panel { position: absolute; z-index: 20; right: 24px; width: 340px; }
+.comparison { top: 72px; bottom: calc(50% + 8px); }
+.crime-panel { top: calc(50% + 8px); bottom: 0; }
+
+/* Reserve separate vertical zones for the two result panels. They used to
+   share the same rectangle, which made the analysis cover the route cards. */
+.workspace:not(:has(.comparison)) .crime-panel { top: 72px; }
 
 .planner, .comparison, .crime-panel, .result-navigation { background: var(--glass); border: 1px solid var(--glass-line); box-shadow: 0 14px 38px rgba(32, 32, 32, .12); backdrop-filter: blur(18px) saturate(120%); }
 .planner { padding: 24px; overflow-y: auto; }
@@ -138,18 +144,20 @@ input { font-size: 15px; }
 .methodology dl > div { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); }
 .methodology dd { margin: 0; }
 
-.footer { position: absolute; z-index: 1000; right: 0; bottom: 0; left: 0; padding: 10px 24px; color: var(--muted); background: rgba(247, 247, 248, .78); border-top: 1px solid rgba(216, 216, 220, .7); backdrop-filter: blur(10px); font-size: 11px; }
+.footer { position: relative; z-index: 1000; flex: 0 0 auto; padding: 10px 24px; color: var(--muted); background: rgba(247, 247, 248, .96); border-top: 1px solid rgba(216, 216, 220, .7); font-size: 11px; }
 .footer p { margin: 0; }
 .footer > span { display: block; margin-top: 5px; font-size: 10px; }
 
 @media (max-width: 1150px) {
-  .workspace.has-results { grid-template-columns: 260px minmax(0, 1fr) 300px; }
-  .planner { padding: 20px; }
+  .planner { width: 280px; padding: 20px; }
+  .comparison, .crime-panel, .result-navigation { right: 16px; width: 300px; }
+  .comparison { bottom: calc(50% + 8px); }
+  .crime-panel { top: calc(50% + 8px); }
   .map-container { min-height: 380px; }
 }
 
 @media (max-width: 900px) {
-  .workspace, .workspace.has-results { display: block; min-height: 100dvh; height: 100dvh; }
+  .workspace, .workspace.has-results { display: block; min-height: 0; height: auto; }
   .panel-navigation { position: absolute; z-index: 30; top: 12px; left: 12px; right: 12px; display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--glass-line); background: var(--glass); box-shadow: 0 12px 30px rgba(32, 32, 32, .1); backdrop-filter: blur(18px) saturate(120%); }
   .workspace > .planner, .workspace > .map-section, .workspace > .comparison, .workspace > .crime-panel { border-left: 0; }
   .workspace > .planner, .workspace > .comparison, .workspace > .crime-panel { display: none; }
@@ -158,7 +166,7 @@ input { font-size: 15px; }
   .workspace.has-results .result-navigation { display: none; }
   .map-section { min-height: 0; }
   .map-container { min-height: 0; flex: 1 1 auto; }
-  .planner, .comparison, .crime-panel { top: 64px; right: 12px; bottom: 34px; left: 12px; width: auto; min-height: 0; overflow: auto; }
+  .planner, .comparison, .crime-panel { top: 64px; right: 12px; bottom: 0; left: 12px; width: auto; min-height: 0; overflow: auto; }
   .planner { padding: 20px 16px; }
   .comparison { padding: 20px 16px; }
   .crime-panel > summary { padding: 18px 16px; }
