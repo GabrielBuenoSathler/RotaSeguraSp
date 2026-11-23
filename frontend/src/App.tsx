@@ -306,13 +306,6 @@ export default function App() {
 
   return (
     <main className="app">
-      <header className="header">
-        <div className="brand">
-          <svg className="brand-icon" viewBox="0 0 32 36" fill="none" aria-hidden="true"><path d="M16 2 28 7v10c0 8-6 13-12 16C10 30 4 25 4 17V7L16 2Z" stroke="currentColor" strokeWidth="2.4" /><path d="m10 17 4 4 8-9" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          <h1>RotaSegura<span>SP</span></h1>
-        </div>
-        <div className="header-meta"><span>São Paulo, Brasil</span><span className="status"><InterfaceIcon name="info" />Versão experimental</span></div>
-      </header>
       <div className={`workspace ${result ? "has-results" : ""}`} data-panel={activePanel} data-details={detailPanel}>
       <nav className="panel-navigation" aria-label="Painéis do trajeto">
         {([['planner', 'Planejar'], ['map', 'Mapa'], ['routes', 'Rotas'], ['crimes', 'Análise']] as const).map(([panel, label]) =>
