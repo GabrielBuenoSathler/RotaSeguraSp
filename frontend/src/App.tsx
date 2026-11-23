@@ -293,7 +293,6 @@ export default function App() {
 
   const recommendation = recommendedRoute(options);
   const recommendedId = recommendation?.route.calculated_route_id;
-  const selectedIndex = options.findIndex(option => option.route.calculated_route_id === result?.calculated_route_id);
   const analysis = risk?.status.success ? risk.result : null;
   const monthGroups = analysis?.ocorrencias_por_mes ?? [];
   const selectedGroup = monthGroups.find(group => (group.mes ?? "sem-data") === selectedMonth);
@@ -316,9 +315,30 @@ export default function App() {
           <button key={panel} aria-pressed={detailPanel === panel} onClick={() => setDetailPanel(panel)}>{label}</button>
         )}
       </nav>}
+        <section className={`map-section ${selecting && !busy ? "is-editing" : ""}`} aria-label="Mapa dos trajetos">
+          <MapView heatCells={heatCells ?? []} heatGroups={heatGroups} heatMonth={selectedMonth} origin={origin} destination={destination} geometry={geometry} options={showAlternatives ? options : options.filter(option => option.route.calculated_route_id === result?.calculated_route_id)} recommendedId={recommendedId} selectedId={result?.calculated_route_id}
+            editing={!!selecting && !busy} onSelectPoint={selectPoint} onChooseRoute={chooseRoute} />
+          {analysis && <details className="heat-controls">
+            <summary>Camadas</summary>
+            <div className="heat-controls-body">
+            <div className="heat-groups">{crimeGroups.map(group => <label key={group.id} title={group.detail}>
+              <input type="checkbox" checked={heatGroups.includes(group.id)} onChange={event => setHeatGroups(current => event.target.checked ? [...current, group.id] : current.filter(id => id !== group.id))} />
+              <i style={{ background: group.color }} /><span>{group.label}</span>
+            </label>)}</div>
+            {analysis.data_agrupamento_configurada && <select aria-label="Mês do mapa de calor" value={selectedMonth} onChange={event => setSelectedMonth(event.target.value)}>
+              <option value="todos">Todo o período</option>
+              {monthGroups.map(group => <option key={group.mes ?? "sem-data"} value={group.mes ?? "sem-data"}>{monthLabel(group.mes)}</option>)}
+            </select>}
+            <small role="status">{!heatCells ? "Mapa de calor indisponível. Recalcule a rota após atualizar a API." : !heatGroups.length ? "Selecione um grupo para visualizar." : `${number(heatCells.filter(cell => heatGroups.includes(cell.grupo) && (selectedMonth === "todos" || (cell.mes ?? "sem-data") === selectedMonth)).reduce((sum, cell) => sum + cell.quantidade, 0))} registros · maior intensidade = maior concentração`}</small>
+            </div>
+          </details>}
+          <div className="map-legend"><span><i className="origin-marker" />Origem</span><span><i className="destination-marker" />Destino</span><span><i className="route-line" />{recommendation ? "Recomendada" : "Trajeto"}</span>{showAlternatives && options.length > 1 && <span><i className="alternative-line" />Alternativas</span>}</div>
+        </section>
+
         <aside className="planner" aria-labelledby="planner-title">
           <h2 id="planner-title"><InterfaceIcon name="route" />Seu trajeto</h2>
           <p className="hint">De onde você sai e aonde quer chegar?</p>
+          <p className="map-selection-hint" role="status" aria-live="polite">{busy ? "Aguarde…" : selecting ? `Clique no mapa para definir ${selecting === "origin" ? "a origem" : "o destino"}` : "Mapa de calor do trajeto selecionado"}</p>
           <div className="point-list">
             {(["origin", "destination"] as const).map((target, index) => (
               <button key={target} type="button" className="selection-item" aria-pressed={selecting === target}
@@ -348,27 +368,6 @@ export default function App() {
           <p className="selection-help" role="status" aria-live="polite">{loading ? "Calculando o trajeto e analisando as ocorrências." : result ? "Sua rota está pronta. Veja o trajeto no mapa." : !origin ? "Defina a origem para começar." : !destination ? "Agora defina o destino." : "Origem e destino definidos. Você já pode calcular."}</p>
           {error && <div className="error-message" role="alert">{error}</div>}
         </aside>
-
-        <section className={`map-section ${selecting && !busy ? "is-editing" : ""}`} aria-label="Mapa dos trajetos">
-          <div className="map-toolbar"><strong><InterfaceIcon name="pin" />{result ? routeName(selectedIndex) : "São Paulo, SP"}</strong><span>{busy ? "Aguarde…" : selecting ? `Clique para definir ${selecting === "origin" ? "a origem" : "o destino"}` : "Mapa de calor do trajeto selecionado"}</span></div>
-          <MapView heatCells={heatCells ?? []} heatGroups={heatGroups} heatMonth={selectedMonth} origin={origin} destination={destination} geometry={geometry} options={showAlternatives ? options : options.filter(option => option.route.calculated_route_id === result?.calculated_route_id)} recommendedId={recommendedId} selectedId={result?.calculated_route_id}
-            editing={!!selecting && !busy} onSelectPoint={selectPoint} onChooseRoute={chooseRoute} />
-          {analysis && <details className="heat-controls">
-            <summary>Camadas</summary>
-            <div className="heat-controls-body">
-            <div className="heat-groups">{crimeGroups.map(group => <label key={group.id} title={group.detail}>
-              <input type="checkbox" checked={heatGroups.includes(group.id)} onChange={event => setHeatGroups(current => event.target.checked ? [...current, group.id] : current.filter(id => id !== group.id))} />
-              <i style={{ background: group.color }} /><span>{group.label}</span>
-            </label>)}</div>
-            {analysis.data_agrupamento_configurada && <select aria-label="Mês do mapa de calor" value={selectedMonth} onChange={event => setSelectedMonth(event.target.value)}>
-              <option value="todos">Todo o período</option>
-              {monthGroups.map(group => <option key={group.mes ?? "sem-data"} value={group.mes ?? "sem-data"}>{monthLabel(group.mes)}</option>)}
-            </select>}
-            <small role="status">{!heatCells ? "Mapa de calor indisponível. Recalcule a rota após atualizar a API." : !heatGroups.length ? "Selecione um grupo para visualizar." : `${number(heatCells.filter(cell => heatGroups.includes(cell.grupo) && (selectedMonth === "todos" || (cell.mes ?? "sem-data") === selectedMonth)).reduce((sum, cell) => sum + cell.quantidade, 0))} registros · maior intensidade = maior concentração`}</small>
-            </div>
-          </details>}
-          <div className="map-legend"><span>Origem</span><span>Destino</span><span><i /> {recommendation ? "Recomendada" : "Trajeto"}</span>{showAlternatives && options.length > 1 && <span><i className="alternative-line" /> Alternativas</span>}</div>
-        </section>
 
         {options.length > 0 && <section className="comparison" aria-labelledby="comparison-title">
           <div className="section-heading"><h2 id="comparison-title">Seu caminho</h2><span>{options.length} {options.length === 1 ? "trajeto encontrado" : "trajetos encontrados"}</span></div>
@@ -417,7 +416,6 @@ export default function App() {
           </div>
         </section>}
       </div>
-      <footer className="footer"><p>Os registros não garantem a segurança de uma rota. Ausência de ocorrências na base não significa ausência de risco.</p><span>RotaSegura SP · Dados de ocorrências e mapas OpenStreetMap</span></footer>
     </main>
   );
 }

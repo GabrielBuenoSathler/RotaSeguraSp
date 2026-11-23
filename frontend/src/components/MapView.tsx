@@ -151,8 +151,8 @@ export default function MapView({
           center={[destination.lat, destination.lon]}
           radius={16}
           pathOptions={{
-            color: "#ffffff",
-            fillColor: "#002FA7",
+            color: "#002FA7",
+            fillColor: "#ffffff",
             fillOpacity: 1,
             weight: 3,
           }}
