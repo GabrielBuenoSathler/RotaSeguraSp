@@ -399,3 +399,243 @@ select { font-size: 13px; border-radius: var(--radius); }
   .status { font-size: 9px; }
   .map-toolbar > span { font-size: 11px; }
 }
+
+/* Map-first canvas: the map owns the viewport and the product controls float above it. */
+.app {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: #FFFFFF;
+}
+
+.header,
+.footer {
+  position: absolute;
+  z-index: 1000;
+  left: 0;
+  right: 0;
+  background: rgba(255, 255, 255, .82);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.header {
+  top: 0;
+}
+
+.footer {
+  bottom: 0;
+}
+
+.workspace,
+.workspace.has-results {
+  position: absolute;
+  inset: 0;
+  display: block;
+  padding: 0;
+  overflow: hidden;
+}
+
+.map-section {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: flex;
+  border: 0;
+  background: transparent;
+}
+
+.map-container {
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+}
+
+.map-toolbar,
+.map-legend,
+.heat-controls {
+  position: absolute;
+  z-index: 500;
+  border: 1px solid rgba(216, 216, 220, .9);
+  background: rgba(255, 255, 255, .78);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.map-toolbar {
+  top: 80px;
+  left: 24px;
+  right: 24px;
+  min-height: 48px;
+  border-top: 0;
+}
+
+.map-legend {
+  left: 24px;
+  bottom: 24px;
+  border-bottom: 0;
+}
+
+.heat-controls {
+  right: 24px;
+  bottom: 24px;
+  width: min(340px, calc(100% - 48px));
+  max-height: 42%;
+  overflow: auto;
+  padding: 0;
+}
+
+.planner,
+.comparison,
+.crime-panel,
+.result-navigation,
+.panel-navigation {
+  position: absolute;
+  z-index: 600;
+  border: 1px solid rgba(216, 216, 220, .9);
+  background: rgba(255, 255, 255, .78);
+  box-shadow: 0 14px 36px rgba(32, 32, 32, .12);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.planner {
+  top: 88px;
+  left: 24px;
+  bottom: 48px;
+  width: 320px;
+  overflow: auto;
+}
+
+.workspace.has-results .planner {
+  bottom: 48px;
+}
+
+.comparison,
+.crime-panel {
+  top: 88px;
+  right: 24px;
+  bottom: 48px;
+  width: 330px;
+  overflow: auto;
+  border-left: 3px solid var(--accent);
+}
+
+.result-navigation {
+  top: 88px;
+  right: 24px;
+  width: 330px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 0;
+}
+
+.result-navigation + .planner,
+.workspace.has-results .planner {
+  /* Keep route controls visible while result details live in the opposite rail. */
+}
+
+.workspace[data-details="routes"] > .crime-panel,
+.workspace[data-details="crimes"] > .comparison {
+  display: none;
+}
+
+.result-navigation ~ .comparison,
+.result-navigation ~ .crime-panel {
+  top: 136px;
+}
+
+.panel-navigation {
+  display: none;
+}
+
+@media (max-width: 1000px) {
+  .header {
+    min-height: 56px;
+  }
+
+  .panel-navigation {
+    top: 64px;
+    left: 12px;
+    right: 12px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    padding: 0;
+  }
+
+  .planner,
+  .comparison,
+  .crime-panel {
+    top: 116px;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    width: auto;
+    border-left: 1px solid rgba(216, 216, 220, .9);
+  }
+
+  .map-toolbar {
+    top: 12px;
+    left: 12px;
+    right: 12px;
+  }
+
+  .map-legend {
+    left: 12px;
+    bottom: 12px;
+  }
+
+  .heat-controls {
+    right: 12px;
+    bottom: 12px;
+    width: min(320px, calc(100% - 24px));
+  }
+
+  .workspace[data-panel="planner"] > .planner,
+  .workspace[data-panel="routes"] > .comparison,
+  .workspace[data-panel="crimes"] > .crime-panel,
+  .workspace[data-panel="map"] > .map-section {
+    display: flex;
+  }
+
+  .workspace[data-panel="planner"] > .planner,
+  .workspace[data-panel="routes"] > .comparison,
+  .workspace[data-panel="crimes"] > .crime-panel {
+    display: block;
+  }
+
+  .workspace > .map-section {
+    display: flex;
+  }
+
+  .workspace[data-panel="planner"] > .map-section,
+  .workspace[data-panel="routes"] > .map-section,
+  .workspace[data-panel="crimes"] > .map-section {
+    display: flex;
+  }
+}
+
+@media (max-width: 480px) {
+  .planner,
+  .comparison,
+  .crime-panel {
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+  }
+
+  .panel-navigation {
+    left: 8px;
+    right: 8px;
+  }
+
+  .map-toolbar {
+    left: 8px;
+    right: 8px;
+  }
+
+  .map-legend {
+    left: 8px;
+    bottom: 8px;
+  }
+}
