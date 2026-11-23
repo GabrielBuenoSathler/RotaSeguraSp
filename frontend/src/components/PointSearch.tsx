@@ -43,8 +43,8 @@ export default function PointSearch({ target, disabled, onSelect, onSearching }:
   return (
     <div className="point-search">
       <form onSubmit={search}>
-        <label htmlFor="address-search">Endereço da {label}</label>
-        <input id="address-search" value={query} minLength={3} maxLength={200}
+        <label htmlFor={`address-search-${target}`}>Endereço da {label}</label>
+        <input id={`address-search-${target}`} value={query} minLength={3} maxLength={200}
           placeholder="Rua, número e cidade" required disabled={disabled || searching}
           onChange={(event) => { setQuery(event.target.value); setPlaces([]); setMessage(""); }} />
         <button type="submit" className="secondary-button" disabled={disabled || searching || query.trim().length < 3}>

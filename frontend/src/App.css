@@ -323,3 +323,27 @@ select { font-size: 13px; border-radius: 5px; }
   .header h1 { font-size: 18px; }
   .map-toolbar > span { max-width: 150px; }
 }
+
+/* Desktop planning: readable controls and room for address selection. */
+.planner-guidance { font-size: 14px; line-height: 1.6; color: #526077; }
+@media (min-width: 1001px) {
+  .workspace { grid-template-columns: 300px minmax(0, 1fr); }
+  .workspace.has-results { grid-template-columns: 300px minmax(0, 1fr) 310px; }
+  .planner { padding: 20px; }
+  .hint, .selection-help, .selection-item small, .text-button,
+  .field-label, .point-search label, .map-toolbar, .map-legend,
+  .exposure-score small, .exposure-detail { font-size: 14px; }
+  .hint, .selection-item small, .selection-help { color: #526077; }
+  .selection-item strong { font-size: 14px; }
+  .selection-item { padding: 12px 8px; }
+  .selection-item[aria-pressed="true"] { background: #f0f4ff; }
+  .point-list { gap: 8px; margin: 20px 0 14px; }
+  .point-search input, .planner select { font-size: 16px; }
+  .point-search p:empty { display: none; }
+  .point-search + .point-search { margin-top: 16px; }
+  .point-actions { border-bottom: 1px solid var(--line); margin-bottom: 18px; }
+  .primary-button { min-height: 48px; font-size: 16px; font-weight: 600; }
+  .footer { font-size: 12px; padding: 10px 0; }
+  .route-metrics { grid-template-columns: 1fr 1fr; }
+  .route-metrics > span:last-child { grid-column: 1 / -1; }
+}

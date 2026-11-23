@@ -1,0 +1,33 @@
+# Serviço separado da aplicação, usando os mapas já gerados em custom_files/.
+# Inicie o ambiente prod antes: sua rede Docker precisa existir.
+services:
+  valhalla:
+    # Mesma imagem usada para gerar e servir os mapas locais (Valhalla 3.9.1).
+    image: ghcr.io/valhalla/valhalla-scripted@sha256:eb31ed81d9819159e80567847aaca5841dd9e057d90f1c656c36b9fc33bdff25
+    restart: unless-stopped
+    # Inicia apenas o serviço; não baixa nem reconstrói mapas no boot.
+    entrypoint: [/usr/local/bin/valhalla_service]
+    command: [/custom_files/valhalla.json, "${VALHALLA_THREADS:-2}"]
+    mem_limit: 2g
+    volumes:
+      - ../custom_files:/custom_files:ro
+    expose:
+      - '8002'
+    healthcheck:
+      test: [CMD, curl, --fail, --silent, --max-time, '5', 'http://127.0.0.1:8002/status']
+      interval: 15s
+      timeout: 6s
+      retries: 5
+      start_period: 60s
+    networks:
+      - application
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+
+networks:
+  application:
+    external: true
+    name: ${VALHALLA_DOCKER_NETWORK:-rotasegura-prod_default}

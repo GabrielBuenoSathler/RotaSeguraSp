@@ -1,389 +1,148 @@
 # RotaSeguraSP
 
-Aplicação experimental para planejar trajetos e comparar a exposição a ocorrências registradas em São Paulo. Backend em FastAPI, SQLAlchemy e PostGIS; roteamento com Valhalla; frontend em React, TypeScript e Leaflet.
+**Compare trajetos em São Paulo com informações sobre as ocorrências registradas perto do caminho.**
 
-## Funcionalidades
+O RotaSeguraSP é um site que reúne mapa, opções de trajeto e dados de ocorrências
+criminais em uma mesma tela. Você informa de onde quer sair e aonde quer chegar,
+e pode comparar a distância, o tempo estimado e os registros próximos de cada
+percurso.
 
-- Origem e destino pelo mapa ou por coordenadas, busca por endereço, localização atual e inversão dos pontos.
-- Trajeto principal e até duas alternativas, quando o Valhalla as disponibiliza.
-- Seleção de cada trajeto para visualizar geometria, distância, duração e análise de ocorrências.
-- Análise vinculada ao ID da rota calculada, inclusive em chamadas simultâneas.
-- Fonte, atualização e período da base exibidos no resultado. Se a análise falhar, o trajeto continua disponível.
+A proposta é oferecer mais contexto para escolher um caminho. A análise é
+experimental: ela compara registros de uma base de dados e não representa a
+probabilidade de sofrer um crime.
 
-A busca por endereço exige uma instância própria ou um provedor compatível com Nominatim, configurado em `NOMINATIM_URL`. Sem essa configuração, mapa e coordenadas continuam disponíveis. A localização atual depende da permissão do navegador e de HTTPS em produção (localhost funciona no desenvolvimento).
+## O que você pode fazer
 
-## Desenvolvimento local
+- **Escolher a origem e o destino:** clicando no mapa ou buscando um endereço.
+- **Usar sua localização atual:** com a sua autorização no navegador.
+- **Escolher como vai se deslocar:** de carro, de bicicleta, a pé ou de motocicleta.
+- **Comparar caminhos:** visualizar o trajeto principal e até duas alternativas, quando disponíveis.
+- **Ver distância e duração estimada:** entender quanto cada opção exige de deslocamento.
+- **Consultar ocorrências próximas:** ver a quantidade e os tipos de registros considerados na análise.
+- **Explorar o mapa de calor:** observar onde esses registros se concentram.
+- **Filtrar a visualização:** selecionar grupos de crimes e meses para explorar os dados.
 
-Requisitos: Python 3.13+, Poetry, Node.js 22+, PostgreSQL com PostGIS e Valhalla com mapas da região carregados.
+A busca por endereço e a identificação dos nomes das ruas dependem do serviço
+de endereços estar habilitado. A seleção de pontos no mapa continua disponível
+mesmo sem esse recurso.
 
-1. Copie `.env.example` para `.env` e ajuste credenciais, banco e URL do Valhalla.
-2. Garanta que o banco configurado exista e tenha a extensão PostGIS.
-3. Instale as dependências, aplique as migrações e inicie a API:
+## Como usar
 
-```bash
-poetry install --no-root
-poetry run alembic upgrade head
-poetry run uvicorn app.main:app --reload
-```
+Não é necessário instalar um aplicativo para usar uma versão do site já publicada:
+basta abrir o endereço no navegador.
 
-Em outro terminal:
+1. **Defina a origem.** Clique no mapa, busque um endereço ou escolha “Usar minha localização”.
+2. **Defina o destino.** Escolha o lugar aonde deseja chegar.
+3. **Selecione o transporte.** As opções são carro, bicicleta, a pé e motocicleta.
+4. **Clique em “Calcular rota”.** O site calcula o trajeto e analisa os registros próximos.
+5. **Explore o resultado.** Veja o caminho no mapa e consulte suas informações.
+6. **Compare as alternativas.** Quando houver outras opções, abra “Ver alternativas de trajeto” e selecione uma delas.
 
-```bash
-cd frontend
-npm ci
-npm run dev
-```
+Ao escolher outra rota, o mapa e a análise passam a mostrar os dados daquela
+opção. Você também pode inverter origem e destino ou limpar os pontos para
+começar uma nova busca.
 
-Frontend: http://localhost:5173. Documentação da API: http://localhost:8000/docs. Para mudar o endereço da API em desenvolvimento, copie `frontend/.env.example` para `frontend/.env`.
+## Um exemplo de uso
 
-## Dados de ocorrências
+Imagine um deslocamento de casa para o trabalho. Um dos caminhos pode ser mais
+curto, enquanto outro passa perto de menos ocorrências registradas.
 
-A ingestão por link da SSP está disponível em `scripts/ingest_ssp.py` (instruções abaixo). O Alembic não cria `ocorrencias_stg`. A tabela precisa conter:
+O RotaSeguraSP apresenta essas diferenças lado a lado. Assim, você pode observar
+o tempo de viagem, a distância e a análise das ocorrências antes de escolher qual
+trajeto quer visualizar.
 
-| Coluna | Tipo esperado | Uso |
-| --- | --- | --- |
-| `rubrica` | texto | Classificação da ocorrência |
-| `geog` | geography(Point, 4326), pode ser nula | Distância em metros |
-| `geom` | geometry(Point, 4326), pode ser nula | Alternativa quando `geog` estiver nula |
-| Coluna configurada em `OCCURRENCE_DATE_COLUMN` | date, timestamp ou timestamptz | Filtro temporal opcional |
+As alternativas dependem das ruas e do meio de transporte escolhido. Por isso,
+nem toda busca terá a mesma quantidade de opções.
 
-Informe a fonte real em `DATASET_SOURCE` e a data da última importação em `DATASET_UPDATED_AT` (AAAA-MM-DD). Esses campos são metadados fornecidos pelo administrador.
+## Como funciona a análise
 
-Para identificar a coluna temporal sem adivinhar nomes:
+Depois que você escolhe os pontos, o sistema realiza quatro etapas:
 
-```sql
-SELECT column_name, data_type
-FROM information_schema.columns
-WHERE table_schema = 'public' AND table_name = 'ocorrencias_stg';
-```
+1. **Calcula os caminhos possíveis** usando os dados das ruas disponíveis no mapa.
+2. **Consulta a base de ocorrências** para encontrar registros próximos de cada trajeto.
+3. **Calcula uma pontuação de exposição**, considerando o tipo de ocorrência e sua distância até o caminho.
+4. **Apresenta a comparação** com os trajetos, seus indicadores e o mapa de calor.
 
-Se os dados tiverem datas em texto, normalize-as na importação antes de ativar o filtro. Com `OCCURRENCE_DATE_COLUMN` configurada, entram apenas ocorrências entre o instante da análise menos `RISK_WINDOW_DAYS` e o instante da análise; datas nulas e futuras ficam fora. Sem a configuração, todas as datas entram e a interface informa que não existe filtro temporal.
+Por padrão, são consideradas ocorrências a até **50 metros do trajeto**. Esse
+alcance pode ser ajustado na configuração da instalação.
 
-## Metodologia experimental
+Os tipos de ocorrência recebem pesos diferentes. Além disso, um registro mais
+próximo do caminho tem maior contribuição na pontuação ajustada do que um
+registro mais distante. Por esse motivo, contar ocorrências e comparar pontuações
+são duas formas diferentes de olhar para o resultado.
 
-A metodologia `exposicao-v2` usa um corredor de `RISK_RADIUS_METERS` ao redor da geometria do trajeto, com padrão de 50 metros. A consulta preserva `COALESCE(geog, geom::geography)`.
+## Entendendo os resultados
 
-Os pesos por categoria seguem a regra existente: 5 para as categorias graves cadastradas na consulta; 3 para roubo, extorsão mediante sequestro e arma de fogo; 2 para lesão corporal e tráfico; 1 para furto e demais categorias. A classificação ainda depende do texto da rubrica.
+| Informação | O que significa |
+| --- | --- |
+| Distância | O tamanho do percurso, em quilômetros. |
+| Tempo estimado | A duração calculada para o transporte escolhido. |
+| Quantidade de ocorrências | Quantos registros da base foram encontrados perto daquele trajeto. |
+| Pontuação de exposição | Um indicador experimental que considera os pesos dos registros próximos. A pontuação ajustada também considera a proximidade ao caminho. |
+| Pontos por quilômetro | A pontuação dividida pela distância, para ajudar a comparar percursos de tamanhos diferentes. |
+| Índice de equilíbrio | Uma comparação entre tempo e exposição que ajuda a sugerir uma opção entre os trajetos da mesma busca. |
 
-A pontuação original soma os pesos. A pontuação ajustada multiplica cada peso pelo fator de proximidade:
+Uma pontuação de exposição menor significa menor exposição **aos registros
+considerados naquela análise**. Ela não significa que o caminho seja livre de
+crimes.
 
-| Distância até a rota | Fator | Exemplo com raio de 50 m |
-| --- | --- | --- |
-| Até 20% do raio | 1,00 | Até 10 m |
-| Até 40% do raio | 0,75 | Mais de 10 até 20 m |
-| Até 60% do raio | 0,50 | Mais de 20 até 30 m |
-| Até 80% do raio | 0,25 | Mais de 30 até 40 m |
-| Até 100% do raio | 0,10 | Mais de 40 até 50 m |
+O índice de equilíbrio também não é uma porcentagem de segurança. Ele serve
+para comparar as opções daquela busca, e não trajetos de buscas diferentes.
 
-Essa regra muda os resultados em relação à versão anterior, na qual todas as ocorrências dentro de 50 metros tinham fator 1. Cada ocorrência é contada uma única vez por trajeto. Também são retornados pontos por quilômetro; para distância zero, o resultado por quilômetro é nulo.
+### O mapa de calor
 
-Compare a pontuação total, a distância e a duração das opções. O trajeto principal continua selecionado inicialmente. Uma pontuação menor representa menor exposição às ocorrências presentes na base, sem validar probabilidade de vitimização. Falta de registros também pode refletir falta de cobertura dos dados.
+O mapa de calor mostra a concentração dos registros próximos da rota selecionada.
+As ocorrências são agrupadas em pequenas áreas; regiões com maior intensidade
+representam maior concentração de registros.
 
-## API
+Você pode ligar ou desligar três grupos:
 
-| Método | Endpoint | Resultado |
-| --- | --- | --- |
-| POST | `/rota/` | Cadastra origem, destino e transporte |
-| POST | `/rota/{id}/calculate` | Calcula o trajeto, alternativas e análise de cada opção |
-| GET | `/places?q=...` | Até cinco endereços no Brasil, via Nominatim configurado |
-| GET | `/health` | Verifica se a aplicação responde; não verifica dependências |
-| GET | `/features` | Flags públicas efetivas para busca de endereços e alternativas |
+- **Violência contra a pessoa:** inclui, por exemplo, lesão corporal, homicídio e estupro.
+- **Assaltos, roubos e arrombamentos.**
+- **Outros crimes:** reúne as demais categorias, incluindo furtos.
 
-O endpoint de cálculo mantém `route`, `risk`, `success` e `message`, acrescentando `alternatives` como uma lista de objetos com `route` e `risk`. Cada análise contém o seu `calculated_route_id`. Respostas inválidas do Valhalla retornam 502; timeout retorna 504. Falhas da análise retornam o trajeto com `risk.status.success=false`.
+O calor do mapa representa a quantidade de registros agrupados, não a pontuação
+ponderada da rota. A classificação depende de como cada ocorrência está descrita
+na base.
 
-A geração das alternativas segue a [API oficial do Valhalla](https://valhalla.github.io/valhalla/api/route/api-reference/). A busca segue a [API Search do Nominatim](https://nominatim.org/release-docs/latest/api/Search/); utilize um provedor adequado ao volume de uso.
+O filtro por mês permite explorar os registros de um período na visualização.
+Ele não refaz a comparação geral dos trajetos: os indicadores das rotas continuam
+considerando o período completo definido para aquela análise.
 
-## Ambientes dev, homolog e prod
+## De onde vêm as informações?
 
-Os ambientes em `deploy/` usam projetos Compose separados, cada um com seu próprio PostgreSQL/PostGIS, volume e rede. O Compose original continua disponível para a instalação que utiliza serviços externos.
+O projeto combina três conjuntos de informações:
 
-Para acessar os bancos pelo host (por exemplo, no DBeaver), use `127.0.0.1` e as credenciais do arquivo `deploy/.env.<ambiente>`:
+| Informação | Para que serve |
+| --- | --- |
+| Dados de ruas e mapas do OpenStreetMap | Permitem mostrar o mapa, identificar endereços e calcular os caminhos. |
+| Base de ocorrências importada para o projeto | Fornece os registros usados na comparação dos trajetos. O projeto possui um importador para as planilhas da SSP de São Paulo. |
+| Origem, destino e transporte escolhidos por você | Definem quais trajetos serão calculados e comparados. |
 
-| Ambiente | Banco | Porta PostgreSQL |
-| --- | --- | --- |
-| dev | rotasegura_dev | 5441 |
-| homolog | rotasegura_homolog | 5442 |
-| prod | rotasegura_prod | 5443 |
+O nome da fonte, a atualização informada para a base e o período considerado
+podem ser consultados no resultado. Esses dados são configurados por quem mantém
+a instalação.
 
-`DATABASE_PORT` define a porta no host; entre containers o PostgreSQL continua na porta 5432. As cópias dos dados são independentes e não sincronizam alterações entre ambientes.
+Os registros não são um acompanhamento de crimes em tempo real. Os resultados
+dependem do conteúdo, da cobertura e da atualização da base importada. Uma região
+com poucos registros também pode ter dados incompletos.
 
-Requisitos: Python 3 para gerar as credenciais locais e Docker com Compose 2.24.4+ (suporte a `!override`). Execute na raiz do projeto:
+## O que considerar ao comparar
 
-```bash
-# Repita para homolog e prod, trocando o nome do ambiente.
-./scripts/env.sh dev init
-# Edite deploy/.env.dev: senha e URLs dos serviços externos.
-./scripts/env.sh dev migrate
-./scripts/env.sh dev up
-```
+Use a distância, o tempo, a pontuação e o mapa em conjunto. O RotaSeguraSP não
+leva em conta fatores como fluxo de pessoas, iluminação, presença policial ou
+mudanças nas condições da rua em tempo real.
 
-Se o arquivo do ambiente já existir, `init` o preserva e encerra sem sobrescrevê-lo. Os arquivos `deploy/.env.dev`, `deploy/.env.homolog` e `deploy/.env.prod` são locais e ignorados pelo Git; os modelos `.example` ficam versionados. `init` gera uma senha aleatória exclusiva para cada ambiente.
+Se a análise de ocorrências estiver indisponível, o trajeto ainda pode ser
+exibido, mas não deve ser interpretado como um caminho sem ocorrências.
 
-| Ambiente | APP_ENV | Frontend padrão | Backend |
-| --- | --- | --- | --- |
-| dev | development | http://localhost:5173 | http://localhost:8000, com recarga automática |
-| homolog | staging | http://localhost:3001 | Acesso pelo proxy `/api` |
-| prod | production | http://localhost:3000 | Acesso pelo proxy `/api` |
+## Documentação técnica
 
-Dev usa Vite e recarrega alterações de frontend e backend. Homolog e prod compilam o frontend e o servem pelo Nginx. Os três podem funcionar simultaneamente. As portas ficam vinculadas ao host local; configure HTTPS em um proxy reverso para publicar homolog/prod. Ajuste `BIND_HOST` quando precisar expor o frontend em outra interface. `CORS_ORIGINS=[]` funciona com o proxy de mesma origem; configure origens explícitas para clientes web que acessem diretamente a API de dev.
+Para instalar, configurar ou manter o projeto, consulte o
+[Guia técnico](docs/GUIA_TECNICO.md).
 
-Para uma VPS com releases versionadas, use o [procedimento de deploy e rollback](deploy/RELEASES.md).
-Ele publica imagens pelo SHA do commit e registra os digests exatos de cada versão.
-Após o primeiro deploy gerenciado, `env.sh` bloqueia `up`, `build` e `migrate`
-nesse ambiente para evitar substituir uma release por um build local.
+As configurações específicas também estão documentadas:
 
-```bash
-./scripts/env.sh homolog migrate
-./scripts/env.sh homolog up
-./scripts/env.sh prod migrate
-./scripts/env.sh prod up
-./scripts/env.sh dev logs -f
-./scripts/env.sh homolog ps
-./scripts/env.sh prod down
-```
-
-`migrate` constrói a imagem, aguarda o banco e aplica as migrações. Execute antes do primeiro `up` e ao atualizar o esquema. `down` preserva o volume do banco. `config` permite validar a configuração; sua saída pode conter credenciais.
-
-Valhalla continua externo: o padrão `http://host.docker.internal:8002` aponta para um serviço publicado no host Docker. Ajuste `VALHALLA_URL` e, se necessário, `NOMINATIM_URL` para serviços acessíveis aos contêineres. Importe separadamente os mapas e a tabela de ocorrências em cada ambiente; os bancos começam vazios e não copiam os dados da instalação existente. Ao mudar dependências do frontend de dev, execute `./scripts/env.sh dev deps` para atualizar o volume de módulos.
-
-## Docker
-
-O Compose utiliza a rede externa `crimes_sp_default` e espera PostgreSQL e Valhalla já disponíveis nessa rede. O PostgreSQL é acessado pelo nome `postgres_ocorrencias`; ajuste `VALHALLA_URL` no `.env` para o nome real do serviço de roteamento, por exemplo `http://criminalidade-valhalla:8002`.
-
-```bash
-docker compose build
-docker compose run --rm backend alembic upgrade head
-docker compose up -d
-```
-
-Frontend: http://localhost:3000. O Nginx encaminha `/api/` para o backend, portanto o navegador usa o mesmo domínio em produção. `VITE_API_URL` pode substituir esse caminho no build. O frontend aguarda o healthcheck da aplicação. Aplique HTTPS no serviço que publica o site.
-
-O Compose não importa ocorrências nem prepara mapas do Valhalla. Sem a tabela de ocorrências, o cálculo do trajeto funciona e sua análise fica indisponível.
-
-## Índices e desempenho
-
-A migração de índices preservada no projeto cria um GiST para `COALESCE(geog, geom::geography)` e um índice de histórico por solicitação/data/ID. A análise agora encontra a rota diretamente pela chave primária.
-
-Se `ocorrencias_stg` não existir durante a migração, crie o índice depois da importação:
-
-```sql
-CREATE INDEX IF NOT EXISTS ix_ocorrencias_stg_risk_geography
-ON ocorrencias_stg USING gist ((COALESCE(geog, geom::geography)));
-ANALYZE ocorrencias_stg;
-```
-
-A criação do índice pode bloquear escritas; programe-a conforme o tamanho da base. Compare `EXPLAIN (ANALYZE, BUFFERS)` em trajetos representativos para medir o ganho.
-
-## Validação
-
-```bash
-poetry run pytest
-poetry run ruff check app tests
-poetry run ruff format --check app tests
-cd frontend
-npm run build
-npm run lint
-npm test
-```
-
-Os testes da API usam provedores e sessão simulados. Os testes marcados `postgis` executam a consulta espacial real. Para ativá-los, defina `TEST_DATABASE_URL` com uma URL SQLAlchemy `postgresql+asyncpg://...` de um banco com PostGIS e execute:
-
-```bash
-poetry run pytest -m postgis
-```
-
-Eles criam tabelas temporárias na própria conexão e desfazem as transações, sem alterar as tabelas existentes. Sem a variável, esses testes são pulados. O workflow de CI executa os testes com PostGIS, os checks Python e os testes/build/lint do frontend.
-
-O CI executa backend e frontend em jobs independentes, reutiliza caches de npm,
-pip e do ambiente Poetry, e cancela execuções antigas da mesma referência.
-`scripts/ci_step.py` registra duração e código de saída de cada etapa de comando
-no resumo do job e nos artefatos `timings-backend` e `timings-frontend` (JSONL).
-Compare execuções com cache frio e quente; o tempo total, incluindo a preparação
-dos runners e serviços, continua disponível no GitHub Actions. `pytest --durations=10`
-mostra os testes mais lentos. O teste de ingestão real da SSP permanece opt-in,
-pois exige o banco de ingestão isolado descrito abaixo.
-
-Os testes do frontend usam o runner nativo do Node com remoção de tipos;
-use Node 22.6+ (o CI acompanha Node 22). Eles cobrem a recomendação de rotas
-e a interpretação das flags; não substituem testes de navegador do fluxo completo.
-
-## Feature flags
-
-As flags são definidas no ambiente do backend e carregadas na inicialização:
-
-| Variável | Padrão | Comportamento com `false` |
-| --- | --- | --- |
-| `FEATURE_GEOCODING` | `true` | Desativa busca e identificação de endereços, inclusive chamadas diretas à API; o mapa continua disponível. |
-| `FEATURE_ROUTE_ALTERNATIVES` | `true` | Solicita apenas a rota principal e ignora alternativas retornadas pelo provedor. |
-
-`NOMINATIM_URL` continua necessário para geocodificação; `ROUTE_ALTERNATES`
-continua definindo a quantidade máxima de alternativas. `GET /features` informa
-apenas os valores efetivos, sem URLs ou credenciais. O frontend consulta esse
-endpoint ao abrir a página e oculta a busca quando indisponível.
-
-Edite `.env` ou `deploy/.env.<ambiente>` e recrie o backend para aplicar a mudança.
-No fluxo versionado, repita `release.py ... deploy` com o mesmo SHA; isso preserva
-o alvo de rollback e dispensa reconstruir imagens. Recarregue a página para obter
-as flags atualizadas. São flags por ambiente, sem segmentação por usuário ou percentual.
-
-## Segurança da API e credenciais do banco
-
-A criação de rota retorna `access_token` uma única vez. O cálculo exige
-`Authorization: Bearer <access_token>` da mesma solicitação; o banco guarda somente
-SHA-256 do segredo aleatório de 256 bits. Tokens ausentes, inválidos e IDs inexistentes
-retornam 404. O frontend usa o segredo apenas durante o fluxo, sem persistência no
-navegador. Rotas criadas antes da migração de segurança ficam inacessíveis pela API.
-As respostas de rotas usam `Cache-Control: no-store`.
-
-Cada processo da API permite 60 requisições por minuto por IP para criação/busca/cálculo,
-com até 10 cálculos por minuto por IP, 600 requisições totais por minuto e quatro
-requisições simultâneas nesses endpoints. Excessos retornam 429 e `Retry-After`.
-As janelas são fixas; reiniciar o processo reinicia as cotas. Múltiplos workers/réplicas
-exigem um limitador compartilhado no proxy ou Redis para manter cotas globais.
-Consultas PostgreSQL têm `statement_timeout` de 15 segundos, configurável por
-`DATABASE_STATEMENT_TIMEOUT_MS`. Geometrias retornadas pelo roteador também têm limites.
-
-No Compose de `deploy/`, o backend fica privado e confia nos cabeçalhos do Nginx,
-que substitui `X-Forwarded-For`. Não publique a porta do backend nessa configuração.
-Um proxy adicional na frente do Nginx precisa de configuração explícita de IPs
-confiáveis; sem isso, clientes desse proxy compartilham a mesma cota.
-
-`POSTGRES_ADMIN_USER` e `POSTGRES_ADMIN_PASSWORD` pertencem exclusivamente ao banco
-e ao serviço temporário `migrate`. `POSTGRES_USER` e `POSTGRES_PASSWORD` identificam
-um usuário diferente, restrito à aplicação. O backend não recebe os segredos administrativos.
-`init` gera senhas independentes. Para volumes existentes, mantenha nas variáveis
-administrativas as credenciais que inicializaram o volume e escolha uma identidade
-nova para a aplicação; mudar variáveis não altera a senha de um usuário já existente.
-
-Para aplicar em cada ambiente, depois de conferir suas credenciais locais:
-
-```bash
-./scripts/env.sh prod migrate
-./scripts/env.sh prod up
-```
-
-`migrate` aplica o Alembic como administrador e provisiona o usuário restrito.
-Esse usuário pode consultar as tabelas de rotas e ocorrências e inserir solicitações
-e resultados; não pode administrar o PostgreSQL, criar tabelas ou apagar registros.
-Depois de importar/recriar `ocorrencias_stg`, execute `./scripts/env.sh prod db-access`
-para conceder leitura à tabela. A rotina recusa usuários administrativos ou com objetos
-próprios, em vez de rebaixar uma identidade existente.
-
-O Compose antigo exige `BACKEND_ENV_FILE` com somente configurações da aplicação,
-`POSTGRES_APP_USER` e `POSTGRES_APP_PASSWORD` de um usuário já provisionado no banco
-externo. Migrações nesse banco devem ser aplicadas separadamente com credenciais
-administrativas. O fluxo automatizado de migração/provisionamento pertence a `deploy/`.
-
-A análise retorna `riscos_por_crime`, agrupada pela rubrica da base (sem distinguir maiúsculas ou espaços nas extremidades). Cada tipo inclui quantidade de ocorrências, pontuações original e ajustada e pontos por quilômetro, com os mesmos pesos, raio e período do total. O detalhamento permanece na API; a interface mostra os registros em um mapa de calor para o trajeto selecionado, incluindo alternativas. Sem ocorrências, a lista fica vazia; com distância zero, pontos por quilômetro são nulos. Não se trata de probabilidade de vitimização.
-
-### Ocorrências por mês
-
-Configure `OCCURRENCE_GROUP_DATE_COLUMN=data_ocorrencia_bo` para categorizar os registros pela data em que ocorreram, independentemente da data de registro do boletim. A coluna deve ser `date` ou `timestamp`. A resposta de cada rota inclui `ocorrencias_por_mes`, com totais, pontuação de exposição e crimes de cada mês. Datas ausentes ficam em “Data não informada”; os totais são preservados.
-
-Na interface, use o filtro de mês do mapa de calor ou “Data das ocorrências” no painel de crimes. Esses seletores alteram o mapa da rota selecionada; os cartões continuam comparando todo o período analisado. O agrupamento não ativa a janela de `RISK_WINDOW_DAYS`: esse filtro continua dependendo de `OCCURRENCE_DATE_COLUMN`.
-
-
-## Ingestão automática por link da SSP
-
-O script baixa a planilha XLSX diretamente da SSP. Com o link da página de consultas,
-consulta o catálogo oficial e seleciona **Dados criminais** pelo ano informado.
-Também aceita o link HTTPS direto de uma planilha compatível, via `--url`.
-As abas de documentação são ignoradas; todas as abas de dados são processadas.
-
-O ambiente `test` tem container, banco e volume próprios, separados de dev/homolog/prod.
-A tabela de testes usa o esquema de `ocorrencias_stg` e inicia vazia, com PostGIS e pg_trgm.
-
-```bash
-poetry install
-# O arquivo local já existe nesta instalação. Em uma instalação nova:
-# cp deploy/.env.test.example deploy/.env.test
-# Edite POSTGRES_ADMIN_PASSWORD com uma senha própria antes de iniciar.
-docker compose -p rotasegura-test --env-file deploy/.env.test -f deploy/compose.test.yaml up -d --build --wait db
-
-# Download automático e teste de inserção de uma amostra real:
-poetry run python scripts/ingest_ssp.py --ano 2026 --target test --limit 100
-# Repetir o comando permite conferir que linhas idênticas não são reinseridas.
-
-# Simular a carga de São Paulo, sem inserir:
-poetry run python scripts/ingest_ssp.py --ano 2026 --target test --municipio-ibge 3550308 --dry-run
-
-# Carregar o ano inteiro no banco de testes (sem --limit):
-poetry run python scripts/ingest_ssp.py --ano 2026 --target test
-
-# Depois da validação, carregar em dev:
-poetry run python scripts/ingest_ssp.py --ano 2026 --target dev
-
-# Testes de conversão e integração real (os registros artificiais sofrem rollback):
-SSP_TEST_DATABASE=1 poetry run pytest tests/test_ssp_ingestion.py -q
-```
-
-Destino padrão: `test`. Banco de testes: `rotasegura_test`, em `127.0.0.1:5444`;
-credenciais em `deploy/.env.test`. Dev usa `deploy/.env.dev`.
-O importador permite apenas test/dev e conecta como administrador para carregar os dados.
-`--limit` só é permitido em test; sem filtro de município, inclui todo o estado.
-
-A carga é transacional: falhas de leitura, validação ou inserção desfazem a carga inteira.
-O relatório mostra linhas lidas, novas, duplicadas e inseridas. A comparação usa as
-30 colunas originais: linhas idênticas, inclusive já presentes no banco, não são
-reinseridas. Uma linha alterada na fonte é adicionada como nova, sem atualizar ou
-excluir a versão anterior. Execuções deste importador são serializadas no banco.
-As coordenadas ausentes/zeradas ficam sem `geom`/`geog`; valores inválidos ou fora dos limites
-geográficos são convertidos em nulos, sem ponto, e contabilizados no log. Datas, inteiros e valores nulos são normalizados.
-Os campos `id`, `geom`, `geog` e `bairro_normalizado` são gerados durante a inserção.
-Após uma carga em dev, atualize os metadados `DATASET_SOURCE` e `DATASET_UPDATED_AT`
-da aplicação conforme a fonte e a data efetivas.
-
-Cada execução baixa a versão atual da planilha; o script não instala um agendamento.
-O volume de testes é preservado ao parar o Compose. As planilhas temporárias são
-removidas ao terminar, inclusive em caso de falha.
-
-### Completar produção a partir do banco de testes
-
-`scripts/merge_ssp_prod.py` lê a maior data presente em `rotasegura_prod` e seleciona
-somente linhas de `rotasegura_test` com data estritamente posterior ao corte.
-Escolha explicitamente `data_registro` ou `data_ocorrencia_bo`:
-
-```bash
-# Simulação; não altera produção:
-poetry run python scripts/merge_ssp_prod.py --date-column data_registro
-# Aplicação; salva um backup da tabela em backups/ antes da inserção:
-poetry run python scripts/merge_ssp_prod.py --date-column data_registro --apply
-```
-
-A operação acrescenta linhas, preserva os registros existentes e usa a mesma
-comparação contra duplicatas e transação do importador. Registros do período
-anterior ao corte, inclusive novas correções nesse período, não são incorporados.
-O destino é exclusivamente `rotasegura_prod`; o banco original `Criminalidade`
-não é alterado por esse comando. Datas nulas não participam do corte.
-
-### Mapa de calor por grupo de crimes
-
-O mapa apresenta as ocorrências do corredor da rota selecionada em três camadas:
-violência contra a pessoa (lesão corporal, latrocínio, mortes, homicídio, feminicídio
-e estupro); assaltos, roubos e arrombamentos; e outros crimes (incluindo furtos).
-A classificação usa a rubrica, com prioridade para violência contra a pessoa.
-As coordenadas são agregadas em células de 0,001 grau (aproximadamente 100 metros),
-por grupo e mês. A intensidade representa concentração de registros, não pontuação
-ponderada ou probabilidade de vitimização. As camadas podem ser ligadas ou desligadas;
-o filtro mensal altera o mapa, mantendo a comparação das rotas no período completo.
-Recalcule as rotas depois de atualizar a API para carregar as células.
-
-### Recomendação e alternativas no frontend
-
-A busca mostra inicialmente somente o trajeto selecionado. O botão **Ver
-alternativas de trajeto** revela as demais rotas nos cartões e no mapa. Os meios
-expostos na interface são carro, bicicleta, a pé e motocicleta.
-
-O índice experimental de equilíbrio entre exposição e tempo usa:
-
-`100 × sqrt(((1 + menor_exposição) / (1 + exposição_da_rota)) × (menor_tempo / tempo_da_rota))`
-
-Tempo e exposição ajustada têm pesos iguais. Maior é melhor entre os trajetos da
-mesma busca; o índice não é comparável entre buscas e não representa probabilidade
-de vitimização. O acréscimo de 1 permite comparar rotas sem registros sem dividir
-por zero. Análises inválidas e tempos ausentes ou não positivos não recebem índice.
-Sem índice válido, a recomendação usa a menor exposição disponível. Não há dados
-de fluxo de viajantes, blitz ou presença policial nessa comparação.
-
-Teste da recomendação (Node.js 22.6+):
-`node --experimental-strip-types --test frontend/tests/routeRecommendation.test.mjs`.
+- [Serviço de rotas e mapas: Valhalla](deploy/VALHALLA.md).
+- [Busca de endereços e identificação de ruas](deploy/GEOCODING.md).
+- [Publicação e atualização na VPS](deploy/RELEASES.md).

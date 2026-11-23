@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 import MapView from "./components/MapView";
 import { crimeGroups } from "./utils/crimeGroups";
+import { pointLabel } from "./utils/pointLabel";
 import PointSearch from "./components/PointSearch";
 import { api } from "./services/api";
 import { disabledFeatures, parseFeatures } from "./services/features";
@@ -142,12 +143,12 @@ export default function App() {
    * O primeiro clique define a origem.
    * O segundo clique define o destino.
    */
-  function selectPoint(point: Coordinates, name = "") {
-    if (busy || !selecting) return;
+  function selectPoint(point: Coordinates, name = "", target = selecting) {
+    if (busy || !target) return;
     setError("");
     invalidateResult();
 
-    if (selecting === "origin") {
+    if (target === "origin") {
       setOrigin(point);
       setOriginName(name);
       setSelecting("destination");
@@ -290,19 +291,6 @@ export default function App() {
     return `${hours} h ${remainingMinutes} min`;
   }
 
-  /**
-   * Formata as coordenadas para exibição.
-   */
-  function formatCoordinate(
-    point: Coordinates | null
-  ): string {
-    if (!point) {
-      return "Selecione no mapa";
-    }
-
-    return "Identificando rua…";
-  }
-
   const recommendation = recommendedRoute(options);
   const recommendedId = recommendation?.route.calculated_route_id;
   const selectedIndex = options.findIndex(option => option.route.calculated_route_id === result?.calculated_route_id);
@@ -344,12 +332,15 @@ export default function App() {
                 disabled={busy || !!result} onClick={() => setSelecting(target)}>
                 <span className="point-icon">{index === 0 ? "A" : "B"}</span>
                 <span><strong>{index === 0 ? "Origem" : "Destino"}</strong>
-                <small title={(index === 0 ? originName : destinationName) || undefined}>{(index === 0 ? originName : destinationName) || formatCoordinate(index === 0 ? origin : destination)}</small></span>
+                <small title={(index === 0 ? originName : destinationName) || undefined}>{pointLabel(index === 0 ? origin : destination, index === 0 ? originName : destinationName, features.geocoding)}</small></span>
               </button>
             ))}
           </div>
           {result ? <button className="secondary-button" disabled={busy} onClick={() => { invalidateResult(); setSelecting("origin"); setActivePanel("planner"); }}>Editar pontos</button> : <>
-            {selecting && features.geocoding && <PointSearch key={selecting} target={selecting} disabled={busy} onSelect={selectPoint} onSearching={setSearching} />}
+            {features.geocoding && <div className="address-inputs">{(["origin", "destination"] as const).map(target =>
+              <PointSearch key={target} target={target} disabled={busy} onSelect={(point, name) => selectPoint(point, name, target)} onSearching={setSearching} />
+            )}</div>}
+            <p className="planner-guidance">{features.geocoding ? "Busque os endereços ou selecione Origem e Destino acima para marcar no mapa." : "Selecione Origem ou Destino acima e clique no mapa para marcar o ponto."}</p>
             <div className="point-actions">
               <button className="text-button" disabled={busy} onClick={useCurrentLocation}>{locating ? "Obtendo localização…" : "Usar minha localização"}</button>
               <button className="text-button" disabled={busy || !origin || !destination} onClick={swapPoints}>Inverter pontos</button>
@@ -370,7 +361,7 @@ export default function App() {
           <MapView heatCells={heatCells ?? []} heatGroups={heatGroups} heatMonth={selectedMonth} origin={origin} destination={destination} geometry={geometry} options={showAlternatives ? options : options.filter(option => option.route.calculated_route_id === result?.calculated_route_id)} recommendedId={recommendedId} selectedId={result?.calculated_route_id}
             editing={!!selecting && !busy} onSelectPoint={selectPoint} onChooseRoute={chooseRoute} />
           {analysis && <details className="heat-controls">
-            <summary>Camadas do mapa de calor</summary>
+            <summary>Camadas</summary>
             <div className="heat-controls-body">
             <div className="heat-groups">{crimeGroups.map(group => <label key={group.id} title={group.detail}>
               <input type="checkbox" checked={heatGroups.includes(group.id)} onChange={event => setHeatGroups(current => event.target.checked ? [...current, group.id] : current.filter(id => id !== group.id))} />

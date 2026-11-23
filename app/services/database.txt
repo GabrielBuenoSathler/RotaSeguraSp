@@ -1,0 +1,6 @@
+ id | bigint               
+ origin|geometry(Point,4326)    
+ destination|geometry(Point,4326) 
+ transport_mode|transport_mode 
+ created_at|timestamp 
+
