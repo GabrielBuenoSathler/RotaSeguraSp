@@ -48,7 +48,7 @@ export default function App() {
   const [originName, setOriginName] = useState("");
   const [destinationName, setDestinationName] = useState("");
 
-  const [showAlternatives, setShowAlternatives] = useState(false);
+  const [showAlternatives, setShowAlternatives] = useState(true);
   const [transportMode, setTransportMode] = useState("auto");
 
   const [loading, setLoading] = useState(false);
@@ -219,6 +219,7 @@ export default function App() {
       const data = calculateResponse.data;
       const routeOptions = [{ route: data.route, risk: data.risk }, ...data.alternatives];
       setOptions(routeOptions);
+      setShowAlternatives(true);
       chooseRoute(recommendedRoute(routeOptions) ?? routeOptions[0]);
       setSelecting(null);
       setDetailPanel("routes");
@@ -398,7 +399,7 @@ export default function App() {
           })}</div>
         </section>}
 
-        {risk && <details ref={crimePanel} tabIndex={-1} className="crime-panel" id="crime-details" key={result?.calculated_route_id} open>
+        {risk && <details ref={crimePanel} tabIndex={-1} className="crime-panel" id="crime-details" key={result?.calculated_route_id}>
           <summary>Sobre a análise</summary>
           <div className="panel-body">{analysis ? <>
             <p className="hint">Registros em até {analysis.raio_analise_metros} metros deste trajeto, agrupados no mapa de calor.</p>
