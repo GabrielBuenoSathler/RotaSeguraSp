@@ -331,7 +331,7 @@ export default function App() {
             {(["origin", "destination"] as const).map((target, index) => (
               <button key={target} type="button" className="selection-item" aria-pressed={selecting === target}
                 disabled={busy || !!result} onClick={() => setSelecting(target)}>
-                <span className="point-icon">{index === 0 ? "A" : "B"}</span>
+                <span className="point-icon" aria-hidden="true"><InterfaceIcon name="pin" /></span>
                 <span><strong>{index === 0 ? "Origem" : "Destino"}</strong>
                 <small title={(index === 0 ? originName : destinationName) || undefined}>{pointLabel(index === 0 ? origin : destination, index === 0 ? originName : destinationName, features.geocoding)}</small></span>
               </button>
@@ -375,7 +375,7 @@ export default function App() {
             <small role="status">{!heatCells ? "Mapa de calor indisponível. Recalcule a rota após atualizar a API." : !heatGroups.length ? "Selecione um grupo para visualizar." : `${number(heatCells.filter(cell => heatGroups.includes(cell.grupo) && (selectedMonth === "todos" || (cell.mes ?? "sem-data") === selectedMonth)).reduce((sum, cell) => sum + cell.quantidade, 0))} registros · maior intensidade = maior concentração`}</small>
             </div>
           </details>}
-          <div className="map-legend"><span><b>A</b> Origem</span><span><b>B</b> Destino</span><span><i /> {recommendation ? "Recomendada" : "Trajeto"}</span>{showAlternatives && <span><i className="alternative-line" /> Alternativas</span>}</div>
+          <div className="map-legend"><span>Origem</span><span>Destino</span><span><i /> {recommendation ? "Recomendada" : "Trajeto"}</span>{showAlternatives && <span><i className="alternative-line" /> Alternativas</span>}</div>
         </section>
 
         {options.length > 0 && <section className="comparison" aria-labelledby="comparison-title">

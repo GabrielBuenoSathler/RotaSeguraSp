@@ -639,3 +639,122 @@ select { font-size: 13px; border-radius: var(--radius); }
     bottom: 8px;
   }
 }
+
+/* Transparent map mode: the map remains visible under every text surface. */
+:root {
+  font-family: "IBM Plex Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: #000000;
+  background: #000000;
+  --accent: #00E676;
+  --line: rgba(0, 0, 0, .72);
+  --muted: rgba(0, 0, 0, .78);
+  --card: transparent;
+}
+
+.app,
+.header,
+.footer,
+.planner,
+.comparison,
+.crime-panel,
+.result-navigation,
+.panel-navigation,
+.map-toolbar,
+.map-legend,
+.heat-controls,
+.heat-controls-body,
+.route-option,
+.selection-item,
+.selection-help,
+.place-results button,
+.route-select,
+input,
+select,
+button,
+.leaflet-tooltip.route-map-label {
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.header,
+.footer,
+.planner,
+.comparison,
+.crime-panel,
+.result-navigation,
+.panel-navigation,
+.map-toolbar,
+.map-legend,
+.heat-controls {
+  border-color: rgba(0, 0, 0, .72);
+}
+
+.header,
+.footer {
+  color: #000000;
+}
+
+.header h1 span,
+.map-toolbar strong,
+.text-button,
+.recommended-badge,
+.exposure-score,
+.methodology summary,
+.primary-button {
+  color: var(--accent);
+}
+
+.primary-button,
+.secondary-button,
+.selection-item[aria-pressed="true"],
+.route-option[data-selected="true"] {
+  background: transparent !important;
+}
+
+.primary-button,
+.secondary-button,
+.selection-item,
+.route-option,
+input,
+select,
+.place-results button {
+  border-color: rgba(0, 0, 0, .72);
+}
+
+.primary-button:hover:not(:disabled),
+.secondary-button:hover:not(:disabled),
+.place-results button:hover:not(:disabled),
+.route-select:hover {
+  background: rgba(0, 230, 118, .12) !important;
+}
+
+.route-option[data-selected="true"] {
+  border-left-color: var(--accent);
+}
+
+.selection-help,
+.error-message,
+.methodology,
+.point-actions {
+  background: transparent !important;
+}
+
+.leaflet-tooltip.point-label,
+.leaflet-tooltip.route-map-label {
+  color: #000000;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, .8);
+}
+
+.leaflet-tooltip.route-map-label.is-recommended {
+  color: #006b39;
+  border-color: #006b39;
+}
+
+@media (max-width: 1000px) {
+  .panel-navigation button,
+  .result-navigation button {
+    background: transparent !important;
+  }
+}

@@ -141,7 +141,7 @@ export default function MapView({
             weight: 3,
           }}
         >
-          <Tooltip permanent direction="center" className="point-label">A</Tooltip><Popup>Origem</Popup>
+          <Tooltip permanent direction="top" offset={[0, -12]} className="point-label">Origem</Tooltip><Popup>Origem</Popup>
         </CircleMarker>
       )}
 
@@ -157,7 +157,7 @@ export default function MapView({
             weight: 3,
           }}
         >
-          <Tooltip permanent direction="center" className="point-label">B</Tooltip><Popup>Destino</Popup>
+          <Tooltip permanent direction="top" offset={[0, -12]} className="point-label">Destino</Tooltip><Popup>Destino</Popup>
         </CircleMarker>
       )}
 
