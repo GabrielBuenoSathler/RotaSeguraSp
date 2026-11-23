@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import MapView from "./components/MapView";
 import { crimeGroups } from "./utils/crimeGroups";
@@ -40,7 +40,6 @@ export default function App() {
   const [selecting, setSelecting] = useState<
     "origin" | "destination" | null>("origin");
 
-  const crimePanel = useRef<HTMLDetailsElement>(null);
   const [activePanel, setActivePanel] = useState<"planner" | "map" | "routes" | "crimes">("planner");
   const [detailPanel, setDetailPanel] = useState<"routes" | "crimes">("routes");
   const [heatGroups, setHeatGroups] = useState<string[]>(["pessoa", "patrimonio", "outros"]);
@@ -368,7 +367,7 @@ export default function App() {
             <small role="status">{!heatCells ? "Mapa de calor indisponível. Recalcule a rota após atualizar a API." : !heatGroups.length ? "Selecione um grupo para visualizar." : `${number(heatCells.filter(cell => heatGroups.includes(cell.grupo) && (selectedMonth === "todos" || (cell.mes ?? "sem-data") === selectedMonth)).reduce((sum, cell) => sum + cell.quantidade, 0))} registros · maior intensidade = maior concentração`}</small>
             </div>
           </details>}
-          <div className="map-legend"><span>Origem</span><span>Destino</span><span><i /> {recommendation ? "Recomendada" : "Trajeto"}</span>{showAlternatives && <span><i className="alternative-line" /> Alternativas</span>}</div>
+          <div className="map-legend"><span>Origem</span><span>Destino</span><span><i /> {recommendation ? "Recomendada" : "Trajeto"}</span>{showAlternatives && options.length > 1 && <span><i className="alternative-line" /> Alternativas</span>}</div>
         </section>
 
         {options.length > 0 && <section className="comparison" aria-labelledby="comparison-title">
@@ -392,8 +391,8 @@ export default function App() {
           })}</div>
         </section>}
 
-        {risk && <details ref={crimePanel} tabIndex={-1} className="crime-panel" id="crime-details" key={result?.calculated_route_id}>
-          <summary>Sobre a análise</summary>
+        {risk && <section className="crime-panel" id="crime-details" aria-labelledby="crime-title" key={result?.calculated_route_id}>
+          <h2 id="crime-title">Sobre a análise</h2>
           <div className="panel-body">{analysis ? <>
             <p className="hint">Registros em até {analysis.raio_analise_metros} metros deste trajeto, agrupados no mapa de calor.</p>
             {analysis.data_agrupamento_configurada ? <div className="month-filter">
@@ -416,7 +415,7 @@ export default function App() {
           </> : <p role="status">{risk.status.message}</p>}
           {!geometry && <p className="hint">O desenho deste trajeto está indisponível no mapa.</p>}
           </div>
-        </details>}
+        </section>}
       </div>
       <footer className="footer"><p>Os registros não garantem a segurança de uma rota. Ausência de ocorrências na base não significa ausência de risco.</p><span>RotaSegura SP · Dados de ocorrências e mapas OpenStreetMap</span></footer>
     </main>
