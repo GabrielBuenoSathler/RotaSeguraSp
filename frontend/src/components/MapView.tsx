@@ -136,7 +136,7 @@ export default function MapView({
           radius={16}
           pathOptions={{
             color: "#ffffff",
-            fillColor: "#2854cf",
+            fillColor: "#002FA7",
             fillOpacity: 1,
             weight: 3,
           }}
@@ -152,7 +152,7 @@ export default function MapView({
           radius={16}
           pathOptions={{
             color: "#ffffff",
-            fillColor: "#2854cf",
+            fillColor: "#002FA7",
             fillOpacity: 1,
             weight: 3,
           }}
@@ -174,7 +174,7 @@ export default function MapView({
         return <Fragment key={option.route.calculated_route_id}><Polyline positions={positions} interactive={false}
           pathOptions={{ color: "#ffffff", weight: recommended ? 11 : 9, opacity: 1 }} />
           <Polyline positions={positions} bubblingMouseEvents={false} className={recommended ? "recommended-route" : "alternative-route"}
-            pathOptions={{ color: recommended ? "#2854cf" : selected ? "#424957" : "#8c9ebc", weight: recommended ? 7 : 5, opacity: 1, bubblingMouseEvents: false, className: recommended ? "recommended-route" : "alternative-route" }}
+            pathOptions={{ color: recommended ? "#002FA7" : selected ? "#505057" : "#929299", weight: recommended ? 7 : 5, opacity: 1, bubblingMouseEvents: false, className: recommended ? "recommended-route" : "alternative-route" }}
             eventHandlers={{ click: () => onChooseRoute(option) }}>
           </Polyline>
           <CircleMarker center={labelPosition(positions, 0.3 + index * 0.2)} radius={0} interactive={false}>

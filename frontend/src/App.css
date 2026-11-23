@@ -1,17 +1,15 @@
-@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;750&display=swap");
-
 :root {
-  font-family: "DM Sans", "Helvetica Neue", Arial, sans-serif;
-  color: #303747;
-  background: #f8f9fb;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  color: #202020;
+  background: #F7F7F8;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  --accent: #2854cf;
-  --line: #e1e5ec;
-  --muted: #707b8e;
+  --accent: #002FA7;
+  --line: #d8d8dc;
+  --muted: #626268;
   --card: #fff;
-  --radius: 8px;
+  --radius: 0px;
 }
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 320px; }
@@ -61,7 +59,7 @@ input { font-size: 16px; }
 .text-button { border: 0; padding: 10px 0; min-height: 44px; text-align: left; background: transparent; color: var(--accent); font-size: 13px; }
 .text-button:hover { text-decoration: underline; }
 .point-actions { display: flex; flex-wrap: wrap; gap: 0 14px; }
-.clear-button { display: block; width: 100%; text-align: center; color: var(--muted); }
+.clear-button { display: block; width: 100%; text-align: left; color: var(--muted); }
 .selection-help { font-size: 12px; color: var(--muted); margin: 20px 0 0; padding: 12px; background: #f7f7f8; border-radius: var(--radius); }
 .place-results { list-style: none; margin: 12px 0; padding: 0; }
 .place-results button { width: 100%; text-align: left; line-height: 1.5; padding: 12px; border: 1px solid var(--line); background: #f7f7f8; color: var(--accent); border-radius: var(--radius); }
@@ -77,7 +75,7 @@ input { font-size: 16px; }
 .map-legend span { display: inline-flex; align-items: center; gap: 6px; }
 .map-legend b { color: var(--accent); }
 .map-legend i { width: 20px; height: 3px; background: var(--accent); }
-.map-legend .alternative-line { background: #8c9ebc; }
+.map-legend .alternative-line { background: #929299; }
 .leaflet-tooltip.point-label { background: transparent; border: 0; box-shadow: none; color: #fff; font: 700 14px "Helvetica Neue", Helvetica, Arial, sans-serif; }
 .leaflet-tooltip.point-label::before { display: none; }
 .comparison { grid-column: 2; grid-row: 2; min-width: 0; }
@@ -173,51 +171,51 @@ input { font-size: 16px; }
 .header h1 { font-size: 25px; font-weight: 750; letter-spacing: -.7px; }
 .header h1 span { margin-left: 5px; }
 .header p { margin-top: 5px; }
-.status { display: inline-flex; align-items: center; gap: 7px; color: #926516; background: #fff5dc; border: 0; border-radius: 5px; padding: 7px 10px; }
+.status { display: inline-flex; align-items: center; gap: 7px; color: #002FA7; background: #F7F7F8; border: 0; border-radius: var(--radius); padding: 7px 10px; }
 .status .interface-icon { width: 13px; height: 13px; }
 .page-intro { padding: 26px 30px 23px; }
 .page-intro h2 { font-size: 25px; font-weight: 700; margin-bottom: 5px; }
 .page-intro > span { display: flex; align-items: center; gap: 6px; }
 .page-intro > span .interface-icon { width: 14px; height: 14px; }
 .workspace, .workspace.has-results { grid-template-rows: min-content 1fr; grid-template-columns: 265px minmax(0, 1fr) 290px; gap: 20px; padding: 0 30px 26px; }
-.planner, .map-section, .crime-panel { box-shadow: 0 2px 8px #30374708; }
+.planner, .map-section, .crime-panel { box-shadow: none; }
 .planner { padding: 21px 18px; }
 .planner h2, .empty-analysis h2, .section-heading h2 { display: flex; align-items: center; gap: 8px; font-size: 16px; letter-spacing: -.2px; }
 .planner h2 .interface-icon, .section-heading .interface-icon, .empty-analysis h2 .interface-icon { color: var(--accent); }
 .planner > .hint { font-size: 12px; margin-bottom: 0; }
 .point-list { position: relative; gap: 12px; margin: 22px 0 16px; }
 .point-list::before { content: ""; position: absolute; left: 17px; top: 36px; bottom: 36px; border-left: 2px dotted var(--line); }
-.selection-item { position: relative; gap: 9px; min-height: 68px; padding: 8px 3px; border-radius: 5px; }
-.selection-item[aria-pressed="true"] { border-color: #2854cf45; background: #f5f7fd; }
+.selection-item { position: relative; gap: 9px; min-height: 68px; padding: 8px 3px; border-radius: var(--radius); }
+.selection-item[aria-pressed="true"] { border-color: #002FA745; background: #F7F7F8; }
 .point-icon { flex-basis: 28px; height: 28px; border: 3px solid #fff; font-size: 11px; }
 .selection-item strong { font-size: 11px; }
 .selection-item small { margin-top: 5px; font-size: 12px; line-height: 1.55; }
 .point-search label { margin-top: 16px; }
-.point-search input { background: #f8f9fb; font-size: 13px; border-radius: 5px; }
+.point-search input { background: #F7F7F8; font-size: 13px; border-radius: var(--radius); }
 .point-search [role="status"] { font-size: 12px; color: var(--muted); }
 .point-search [role="status"]:empty { display: none; }
 .point-actions { gap: 0 12px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
 .point-actions .text-button { font-size: 11px; }
 .field-label { font-size: 12px; margin-top: 20px; }
-select { font-size: 13px; border-radius: 5px; }
-.primary-button, .secondary-button { border-radius: 5px; font-size: 12px; font-weight: 600; }
+select { font-size: 13px; border-radius: var(--radius); }
+.primary-button, .secondary-button { border-radius: var(--radius); font-size: 12px; font-weight: 600; }
 .primary-button { margin-top: 14px; }
-.primary-button:disabled { opacity: 1; background: #e7ebf3; border-color: #e7ebf3; color: #748199; }
-.primary-button:hover:not(:disabled) { background: #1e43ac; }
+.primary-button:disabled { opacity: 1; background: #e5e5e8; border-color: #e5e5e8; color: #626268; }
+.primary-button:hover:not(:disabled) { background: #00247f; }
 .secondary-button { background: #fff; }
-.selection-help { margin-top: 12px; background: #f1f4f8; border-radius: 5px; font-size: 11px; line-height: 1.7; }
+.selection-help { margin-top: 12px; background: #F7F7F8; border-radius: var(--radius); font-size: 11px; line-height: 1.7; }
 .map-toolbar { min-height: 52px; padding: 12px 16px; }
-.map-toolbar strong { display: flex; align-items: center; gap: 8px; color: #303747; font-weight: 700; }
+.map-toolbar strong { display: flex; align-items: center; gap: 8px; color: #202020; font-weight: 700; }
 .map-toolbar strong .interface-icon { color: var(--accent); width: 15px; height: 15px; }
 .map-toolbar > span { max-width: 220px; font-size: 10px; }
 .map-container { height: 365px; }
 .map-legend { padding: 13px 16px; font-size: 10px; }
 .comparison { margin-top: 5px; }
 .route-options { gap: 10px; }
-.route-option { border-radius: 6px; }
-.route-option[data-selected="true"] { background: #f7f9ff; }
+.route-option { border-radius: var(--radius); }
+.route-option[data-selected="true"] { background: #F7F7F8; }
 .route-select { padding: 14px 12px; }
-.recommended-badge { color: #28754d; }
+.recommended-badge { color: #002FA7; }
 .crime-panel > summary { padding: 20px 17px; font-size: 16px; }
 .empty-analysis-heading { padding: 20px 17px 16px; border-bottom: 1px solid var(--line); }
 .empty-analysis h2 { margin-bottom: 8px; }
@@ -226,7 +224,7 @@ select { font-size: 13px; border-radius: 5px; }
 .empty-analysis-body > .interface-icon { width: 32px; height: 32px; color: var(--accent); margin-bottom: 16px; }
 .empty-analysis-body p { font-size: 13px; font-weight: 600; margin-bottom: 10px; }
 .empty-analysis-body > span { display: block; color: var(--muted); font-size: 12px; line-height: 1.8; }
-.analysis-note { display: flex; align-items: flex-start; gap: 8px; padding: 14px 17px; border-top: 1px solid var(--line); border-radius: 0 0 8px 8px; background: #f1f4f8; color: var(--muted); font-size: 10px; line-height: 1.7; }
+.analysis-note { display: flex; align-items: flex-start; gap: 8px; padding: 14px 17px; border-top: 1px solid var(--line); border-radius: var(--radius); background: #F7F7F8; color: var(--muted); font-size: 10px; line-height: 1.7; }
 .analysis-note .interface-icon { width: 14px; height: 14px; margin-top: 2px; }
 .empty-comparison .hint { max-width: 580px; }
 .footer { margin: 0 30px; padding: 16px 0 24px; font-size: 10px; }
@@ -325,7 +323,7 @@ select { font-size: 13px; border-radius: 5px; }
 }
 
 /* Desktop planning: readable controls and room for address selection. */
-.planner-guidance { font-size: 14px; line-height: 1.6; color: #526077; }
+.planner-guidance { font-size: 14px; line-height: 1.6; color: #505057; }
 @media (min-width: 1001px) {
   .workspace { grid-template-columns: 300px minmax(0, 1fr); }
   .workspace.has-results { grid-template-columns: 300px minmax(0, 1fr) 310px; }
@@ -333,10 +331,10 @@ select { font-size: 13px; border-radius: 5px; }
   .hint, .selection-help, .selection-item small, .text-button,
   .field-label, .point-search label, .map-toolbar, .map-legend,
   .exposure-score small, .exposure-detail { font-size: 14px; }
-  .hint, .selection-item small, .selection-help { color: #526077; }
+  .hint, .selection-item small, .selection-help { color: #505057; }
   .selection-item strong { font-size: 14px; }
   .selection-item { padding: 12px 8px; }
-  .selection-item[aria-pressed="true"] { background: #f0f4ff; }
+  .selection-item[aria-pressed="true"] { background: #F7F7F8; }
   .point-list { gap: 8px; margin: 20px 0 14px; }
   .point-search input, .planner select { font-size: 16px; }
   .point-search p:empty { display: none; }
@@ -346,4 +344,58 @@ select { font-size: 13px; border-radius: 5px; }
   .footer { font-size: 12px; padding: 10px 0; }
   .route-metrics { grid-template-columns: 1fr 1fr; }
   .route-metrics > span:last-child { grid-column: 1 / -1; }
+}
+
+/* Swiss: an editorial grid with origin and destination as typographic landmarks. */
+:root { font-variant-numeric: tabular-nums; }
+.app { background: #FFFFFF; }
+.header { min-height: 64px; padding: 12px 24px; border-bottom-color: #202020; }
+.header h1 { font-size: 24px; font-weight: 700; letter-spacing: -1px; }
+.brand-icon { display: none; }
+.status { border: 1px solid var(--line); background: #FFFFFF; }
+.workspace, .workspace.has-results { gap: 0; padding: 0; }
+.planner { border: 0; border-right: 1px solid var(--line); padding: 24px; }
+.planner h2 { font-size: 24px; letter-spacing: -.8px; }
+.planner h2 .interface-icon { display: none; }
+.planner > .hint { font-size: 14px; }
+.map-section { border: 0; }
+.map-toolbar { min-height: 48px; padding: 12px 20px; }
+.map-toolbar > span { font-size: 12px; }
+.map-legend { padding: 12px 20px; }
+.point-list { gap: 0; margin: 24px 0 16px; border-top: 1px solid var(--line); }
+.point-list::before { display: none; }
+.selection-item { gap: 16px; min-height: 94px; padding: 14px 8px; border: 0; border-bottom: 1px solid var(--line); }
+.selection-item[aria-pressed="true"] { background: #F7F7F8; border-color: var(--line); box-shadow: inset 3px 0 var(--accent); }
+.point-icon { display: block; flex: 0 0 42px; height: auto; border: 0; border-radius: 0; background: transparent; color: var(--accent); font-size: 56px; font-weight: 500; letter-spacing: -4px; line-height: 1; }
+.selection-item strong { font-size: 13px; }
+.selection-item small { font-size: 13px; }
+.planner-guidance { font-size: 13px; }
+.selection-help { padding: 12px 0 12px 12px; border-left: 2px solid var(--accent); background: #F7F7F8; }
+.primary-button { min-height: 48px; text-align: left; padding-left: 14px; }
+.primary-button:hover:not(:disabled) { background: #00247f; }
+.clear-button { text-align: left; }
+.result-navigation { border-width: 0 0 1px 1px; }
+.comparison, .crime-panel { border: 0; border-left: 1px solid var(--line); padding: 18px; }
+.crime-panel > summary { padding: 0 0 18px; }
+.panel-body { padding: 18px 0; }
+.route-option[data-selected="true"] { background: #F7F7F8; box-shadow: none; border-left: 3px solid var(--accent); }
+.exposure-score b { font-size: 42px; letter-spacing: -2px; font-weight: 500; }
+.route-metrics b { font-size: 20px; }
+.footer { margin: 0; padding: 10px 24px; background: #F7F7F8; }
+.leaflet-container { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; }
+.leaflet-bar { border-radius: 0 !important; box-shadow: none !important; }
+.leaflet-bar a:first-child, .leaflet-bar a:last-child { border-radius: 0; }
+@media (max-width: 1000px) {
+  .header { min-height: 56px; padding: 10px 16px; }
+  .workspace, .workspace.has-results { gap: 0; padding: 0; }
+  .panel-navigation { border-width: 0 0 1px; }
+  .planner { padding: 20px; border-right: 0; }
+  .comparison, .crime-panel { border-left: 0; padding: 20px; }
+  .map-toolbar, .map-legend { padding-left: 16px; padding-right: 16px; }
+  .footer { padding: 8px 16px; margin: 0; }
+}
+@media (max-width: 480px) {
+  .header h1 { font-size: 21px; }
+  .status { font-size: 9px; }
+  .map-toolbar > span { font-size: 11px; }
 }
