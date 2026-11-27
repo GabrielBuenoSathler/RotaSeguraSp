@@ -341,7 +341,7 @@ select option { color: #e9faff; background: #100b21; }
     position: absolute;
     z-index: 600;
     top: 16px;
-    right: 64px;
+    right: 16px;
     width: 320px;
     border-radius: 12px 12px 0 0;
   }
@@ -349,7 +349,7 @@ select option { color: #e9faff; background: #100b21; }
     position: absolute;
     z-index: 600;
     top: 64px;
-    right: 64px;
+    right: 16px;
     width: 320px;
     max-height: calc(100% - 80px);
     border-radius: 0 0 12px 12px;
