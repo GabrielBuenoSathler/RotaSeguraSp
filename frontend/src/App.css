@@ -164,11 +164,11 @@ input { font-size: 15px; }
   .workspace { position: relative; display: block; padding: 0; }
   .workspace, .workspace.has-results { position: relative; display: block; padding: 0; }
   .panel-navigation { position: absolute; z-index: 1000; top: 10px; left: 50%; display: grid; width: min(430px, calc(100% - 24px)); grid-template-columns: repeat(4, minmax(0, 1fr)); transform: translateX(-50%); overflow: hidden; border: 1px solid var(--glass-line); background: var(--glass); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
-  .workspace > .planner, .workspace > .comparison, .workspace > .crime-panel { position: absolute; z-index: 1000; top: 68px; left: 12px; bottom: 12px; width: min(360px, calc(100% - 24px)); display: none; transform: none; border: 1px solid var(--glass-line); box-shadow: 0 8px 28px rgb(20 30 50 / 18%); }
+  .map-section > .planner, .workspace > .comparison, .workspace > .crime-panel { position: absolute; z-index: 1000; top: 68px; left: 12px; bottom: 12px; width: min(360px, calc(100% - 24px)); display: none; transform: none; border: 1px solid var(--glass-line); box-shadow: 0 8px 28px rgb(20 30 50 / 18%); }
   .workspace > .map-section { position: absolute; inset: 0; display: flex; border: 0; }
   .leaflet-top.leaflet-left { right: 10px; left: auto; }
   .map-legend, .heat-controls { background: var(--glass); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
-  .workspace[data-panel="planner"] > .planner,
+  .workspace[data-panel="planner"] > .map-section > .planner,
   .workspace[data-panel="routes"] > .comparison,
   .workspace[data-panel="crimes"] > .crime-panel { display: block; }
   .workspace[data-panel="map"] > .map-section { display: flex; }
@@ -189,3 +189,190 @@ input { font-size: 15px; }
 }
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; } }
+
+/* Retro-futuristic interface layer: dark terminal surfaces, cyan/magenta signals,
+   and a restrained CRT texture keep the map readable while giving the shell a
+   distinct visual identity. */
+:root {
+  font-family: "Space Mono", "IBM Plex Mono", "Courier New", monospace;
+  color: #e9faff;
+  background: #0a0014;
+  --accent: #00ffff;
+  --signal-pink: #ff006e;
+  --line: rgb(0 255 255 / 26%);
+  --muted: #9ca9c4;
+  --surface: #100b21;
+  --glass: rgb(16 11 33 / 91%);
+  --glass-line: rgb(0 255 255 / 30%);
+  --glow: 0 0 18px rgb(0 255 255 / 18%);
+}
+
+body { background: #0a0014; }
+
+.app {
+  position: relative;
+  isolation: isolate;
+  background: #0a0014;
+}
+
+.app::before {
+  position: absolute;
+  z-index: 20;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+  opacity: .12;
+  background: repeating-linear-gradient(0deg, transparent 0 3px, rgb(0 255 255 / 16%) 4px, transparent 5px);
+  mix-blend-mode: screen;
+}
+
+.workspace { background: #0a0014; }
+.app-header {
+  position: relative;
+  z-index: 1;
+  min-height: 64px;
+  padding: 16px 24px 14px;
+  color: #e9faff;
+  background: #0a0014;
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 1px 0 rgb(255 0 110 / 20%);
+}
+.app-header strong {
+  color: var(--accent);
+  letter-spacing: 1px;
+  text-shadow: 2px 0 rgb(255 0 110 / 50%), 0 0 12px rgb(0 255 255 / 50%);
+}
+.app-header > span { color: var(--muted); }
+
+.planner, .comparison, .crime-panel, .result-navigation,
+.panel-navigation, .map-legend, .heat-controls {
+  color: #e9faff;
+  background: var(--glass);
+  border-color: var(--glass-line);
+  box-shadow: var(--glow);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+.planner { box-shadow: 0 0 28px rgb(0 255 255 / 13%), 0 0 1px #ff006e; }
+.planner h2, .section-heading h2 { letter-spacing: 0; text-transform: uppercase; }
+.planner h2 .interface-icon, .section-heading .interface-icon { color: var(--accent); }
+.hint, .planner-guidance, .selection-help, .methodology, .exposure-detail, .route-unavailable { color: var(--muted); }
+.map-selection-hint, .selection-help { background: rgb(0 255 255 / 5%); border-left-color: var(--accent); }
+
+input, select {
+  color: #e9faff;
+  background: #0d071b;
+  border-color: var(--line);
+  border-radius: 0;
+}
+input::placeholder { color: #65718c; }
+select option { color: #e9faff; background: #100b21; }
+.point-list, .selection-item, .methodology, .methodology dl > div { border-color: var(--line); }
+.selection-item[aria-pressed="true"] { background: rgb(0 255 255 / 7%); box-shadow: inset 3px 0 var(--accent), 0 0 14px rgb(0 255 255 / 8%); }
+.point-icon { background: var(--signal-pink); box-shadow: 0 0 12px rgb(255 0 110 / 60%); }
+.primary-button {
+  color: #0a0014;
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 16px rgb(0 255 255 / 35%);
+}
+.primary-button:hover:not(:disabled) { color: #fff; background: var(--signal-pink); border-color: var(--signal-pink); box-shadow: 0 0 16px rgb(255 0 110 / 45%); }
+.secondary-button, .route-option, .place-results button { color: #e9faff; background: #100b21; border-color: var(--line); }
+.secondary-button:hover:not(:disabled), .place-results button:hover:not(:disabled), .route-select:hover { background: rgb(0 255 255 / 8%); }
+.text-button, .heat-controls > summary, .methodology summary { color: var(--accent); }
+.error-message { color: #ff8fb9; border-color: var(--signal-pink); background: rgb(255 0 110 / 8%); }
+
+.result-navigation button, .panel-navigation button { color: var(--muted); }
+.result-navigation button[aria-pressed="true"], .panel-navigation button[aria-pressed="true"] { color: var(--accent); border-bottom-color: var(--signal-pink); text-shadow: 0 0 10px rgb(0 255 255 / 60%); }
+.route-option[data-selected="true"] { background: rgb(0 255 255 / 7%); border-color: var(--accent); border-left-color: var(--signal-pink); }
+.route-option[data-recommended="true"] { box-shadow: 0 0 18px rgb(255 0 110 / 12%); }
+.route-option-heading > span, .route-metrics small, .exposure-score small { color: var(--muted); }
+.recommended-badge, .exposure-score { color: var(--accent); }
+.exposure-score b { text-shadow: 0 0 14px rgb(0 255 255 / 50%); }
+.map-legend { color: var(--muted); background: rgb(16 11 33 / 92%); }
+.map-legend .origin-marker { background: var(--signal-pink); border-color: var(--signal-pink); box-shadow: 0 0 8px var(--signal-pink); }
+.map-legend .destination-marker { background: transparent; border-color: var(--accent); box-shadow: 0 0 8px var(--accent); }
+.map-legend .route-line { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+.map-legend .alternative-line { background: #9ca9c4; }
+.heat-controls { background: rgb(16 11 33 / 92%); }
+.heat-groups label, .heat-controls small { color: var(--muted); }
+.heat-groups input { accent-color: var(--signal-pink); }
+.footer { color: var(--muted); background: #0a0014; border-color: var(--line); }
+.leaflet-tooltip.route-map-label { color: #e9faff; background: #100b21; border-color: var(--accent); box-shadow: 0 0 12px rgb(0 255 255 / 25%); }
+.leaflet-tooltip.route-map-label.is-recommended { color: var(--accent); border-color: var(--signal-pink); }
+.leaflet-tooltip.point-label { text-shadow: 0 0 8px #0a0014, 0 0 2px var(--signal-pink); }
+
+@media (max-width: 900px) {
+  .map-section > .planner, .workspace > .comparison, .workspace > .crime-panel { box-shadow: 0 0 28px rgb(0 255 255 / 18%), 0 0 1px var(--signal-pink); }
+}
+
+@media (min-width: 901px) {
+  /* The map is the canvas; panels float above it instead of sizing grid tracks. */
+  .workspace, .workspace.has-results {
+    display: block;
+    padding: 0;
+  }
+  .workspace > .map-section,
+  .workspace.has-results > .map-section {
+    position: absolute;
+    inset: 0;
+  }
+  .map-section > .planner {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    right: auto;
+    bottom: auto;
+    z-index: 500;
+    width: min(300px, calc(100% - 32px));
+    max-height: calc(100% - 32px);
+    margin: 0;
+    border-radius: 12px;
+    transform: none;
+    box-shadow: 0 14px 34px rgb(0 0 0 / 34%), 0 0 24px rgb(0 255 255 / 12%);
+  }
+  .planner { padding: 16px; }
+  .planner > .hint { margin-bottom: 12px; }
+  .planner .point-list { margin: 12px 0; }
+  .planner .selection-item { min-height: 62px; padding: 8px 6px; }
+  .planner .planner-guidance { margin-top: 10px; }
+  .planner .selection-help { margin-top: 10px; padding: 8px; }
+  .workspace > .result-navigation {
+    position: absolute;
+    z-index: 600;
+    top: 16px;
+    right: 64px;
+    width: 320px;
+    border-radius: 12px 12px 0 0;
+  }
+  .workspace > .comparison, .workspace > .crime-panel {
+    position: absolute;
+    z-index: 600;
+    top: 64px;
+    right: 64px;
+    width: 320px;
+    max-height: calc(100% - 80px);
+    border-radius: 0 0 12px 12px;
+  }
+}
+
+/* Map tools overlay the canvas, leaving the basemap visible to every edge. */
+.map-section > .map-legend {
+  position: absolute;
+  z-index: 450;
+  right: 54px;
+  bottom: 24px;
+  margin: 0;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.map-section > .heat-controls {
+  position: absolute;
+  z-index: 450;
+  right: 54px;
+  bottom: 78px;
+  max-width: min(360px, calc(100% - 70px));
+  margin: 0;
+  border-radius: 8px;
+}
+.leaflet-top.leaflet-left { top: auto; bottom: 28px; right: 12px; }

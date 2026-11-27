@@ -333,8 +333,6 @@ export default function App() {
             </div>
           </details>}
           <div className="map-legend"><span><i className="origin-marker" />Origem</span><span><i className="destination-marker" />Destino</span><span><i className="route-line" />{recommendation ? "Recomendada" : "Trajeto"}</span>{showAlternatives && options.length > 1 && <span><i className="alternative-line" />Alternativas</span>}</div>
-        </section>
-
         <aside className="planner" aria-labelledby="planner-title">
           <h2 id="planner-title"><InterfaceIcon name="route" />Seu trajeto</h2>
           <p className="hint">De onde você sai e aonde quer chegar?</p>
@@ -368,6 +366,7 @@ export default function App() {
           <p className="selection-help" role="status" aria-live="polite">{loading ? "Calculando o trajeto e analisando as ocorrências." : result ? "Sua rota está pronta. Veja o trajeto no mapa." : !origin ? "Defina a origem para começar." : !destination ? "Agora defina o destino." : "Origem e destino definidos. Você já pode calcular."}</p>
           {error && <div className="error-message" role="alert">{error}</div>}
         </aside>
+        </section>
 
         {options.length > 0 && <section className="comparison" aria-labelledby="comparison-title">
           <div className="section-heading"><h2 id="comparison-title">Seu caminho</h2><span>{options.length} {options.length === 1 ? "trajeto encontrado" : "trajetos encontrados"}</span></div>
